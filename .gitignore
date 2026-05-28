@@ -144,6 +144,7 @@ log/
 backup/
 .idea/
 # resources/
-.vscode/launch.json
-
+.vscode/
+docker/
+tests/
 ffmpeg/
