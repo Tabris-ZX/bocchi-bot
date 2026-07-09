@@ -1,0 +1,66 @@
+{% for name, value in theme.palette.colors.items() %}
+.text-{{ name | replace('_', '-') }} { color: var(--color-{{ name | replace('_', '-') }}); }
+.bg-{{ name | replace('_', '-') }} { background-color: var(--color-{{ name | replace('_', '-') }}) }
+.border-{{ name | replace('_', '-') }} { border-color: var(--color-{{ name | replace('_', '-') }}); }
+{% endfor %}
+
+{% set border_width_scale = { '0': '0', '1': '1px', '2': '2px', '4': '4px', '8': '8px' } %}
+{% for key, val in border_width_scale.items() %}
+.border-{{ key }} { border-width: {{ val }}; }
+{% endfor %}
+
+{% set space_scale = { '0': '0', '1': '0.25rem', '2': '0.5rem', '3': '0.75rem', '4': '1rem', '5': '1.25rem', '6': '1.5rem', '8': '2rem', '10': '2.5rem', '12': '3rem' } %}
+{% for key, val in space_scale.items() %}
+.m-{{ key }} { margin: {{ val }}; }
+.mt-{{ key }} { margin-top: {{ val }}; }
+.mr-{{ key }} { margin-right: {{ val }}; }
+.mb-{{ key }} { margin-bottom: {{ val }}; }
+.ml-{{ key }} { margin-left: {{ val }}; }
+.mx-{{ key }} { margin-left: {{ val }}; margin-right: {{ val }}; }
+.my-{{ key }} { margin-top: {{ val }}; margin-bottom: {{ val }}; }
+
+.p-{{ key }} { padding: {{ val }}; }
+.pt-{{ key }} { padding-top: {{ val }}; }
+.pr-{{ key }} { padding-right: {{ val }}; }
+.pb-{{ key }} { padding-bottom: {{ val }}; }
+.pl-{{ key }} { padding-left: {{ val }}; }
+.px-{{ key }} { padding-left: {{ val }}; padding-right: {{ val }}; }
+.py-{{ key }} { padding-top: {{ val }}; padding-bottom: {{ val }}; }
+{% endfor %}
+
+.flex { display: flex; }
+.grid { display: grid; }
+.block { display: block; }
+.inline-block { display: inline-block; }
+.hidden { display: none; }
+
+.items-start { align-items: flex-start; }
+.items-center { align-items: center; }
+.items-end { align-items: flex-end; }
+.justify-start { justify-content: flex-start; }
+.justify-center { justify-content: center; }
+.justify-end { justify-content: flex-end; }
+.justify-between { justify-content: space-between; }
+
+{% set border_styles = ['solid', 'dashed', 'dotted'] %}
+{% for style in border_styles %}
+.border-{{ style }} { border-style: {{ style }} !important; }
+{% endfor %}
+
+{% set border_radius_scale = { 'sm': '0.25rem', 'md': '0.5rem', 'lg': '0.75rem', 'xl': '1rem', 'full': '9999px' } %}
+{% for key, val in border_radius_scale.items() %}
+.rounded-{{ key }} { border-radius: {{ val }}; }
+{% endfor %}
+
+.font-bold { font-weight: 700; }
+.font-normal { font-weight: 400; }
+.text-left { text-align: left; }
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+.text-sm { font-size: 0.875rem; }
+.text-base { font-size: 1rem; }
+.text-lg { font-size: 1.125rem; }
+.text-xl { font-size: 1.25rem; }
+
+.w-full { width: 100%; }
+.h-full { height: 100%; }

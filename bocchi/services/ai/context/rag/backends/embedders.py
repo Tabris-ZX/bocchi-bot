@@ -1,0 +1,176 @@
+from abc import ABC, abstractmethod
+import asyncio
+import threading
+from typing import Any, Literal, Protocol, runtime_checkable
+
+from bocchi.services.ai.core.messages import EmbedBatch
+from bocchi.services.ai.llm.api import embed as api_embed
+from bocchi.services.ai.message_builder import MessageBuilder
+from bocchi.services.log import logger
+
+EmbedTaskType = Literal[
+    "general", "query", "document", "similarity", "classification", "clustering"
+]
+
+
+@runtime_checkable
+class Embedder(Protocol):
+    """
+    向量化引擎协议 (Callable Protocol)。
+    任何实现了异步 __call__ 的对象或闭包函数均可作为 Embedder。
+    """
+
+    async def __call__(
+        self, input_batch: Any, task: EmbedTaskType = "general", **kwargs
+    ) -> list[list[float]]:
+        """
+        将文本、多模态或预构建的 EmbedBatch 转换为向量列表。
+        """
+        ...
+
+
+class DefaultEmbedder(Embedder):
+    """系统默认的向量化引擎，调用大模型底座 API"""
+
+    def __init__(self, model_name: str | None = None, config: Any = None):
+        self.model_name = model_name
+        self.config = config
+
+    async def __call__(
+        self, input_batch: Any, task: EmbedTaskType = "general", **kwargs
+    ) -> list[list[float]]:
+        if not input_batch:
+            return []
+        try:
+            res = await api_embed(
+                input_batch, model=self.model_name, task=task, config=self.config
+            )
+            return res.embeddings
+        except Exception as e:
+            logger.error(f"DefaultEmbedder 向量化失败: {e}", e=e)
+            return []
+
+
+class BaseLocalEmbedder(Embedder, ABC):
+    """本地向量化引擎基类，统一处理多模态降级与同步推理由协程包裹逻辑。"""
+
+    def __init__(self, model_name: str):
+        self.model_name = model_name
+        self._model_lock = threading.Lock()
+
+    @abstractmethod
+    def _encode_texts(self, texts: list[str]) -> list[list[float]]:
+        """子类只需实现此同步的批量文本向量化方法即可。"""
+        pass
+
+    async def __call__(
+        self, input_batch: Any, task: EmbedTaskType = "general", **kwargs
+    ) -> list[list[float]]:
+        if not input_batch:
+            return []
+
+        if isinstance(input_batch, EmbedBatch):
+            batch = input_batch
+        else:
+            batch = await MessageBuilder.normalize_to_embed_batch(input_batch)
+
+        texts = batch.to_text_only(f"本地模型 {self.model_name}")
+
+        if not texts:
+            return []
+
+        def _sync_embed():
+            return self._encode_texts(texts)
+
+        return await asyncio.to_thread(_sync_embed)
+
+
+class FastEmbedder(BaseLocalEmbedder):
+    """
+    基于 FastEmbed 的轻量级本地向量化引擎。
+    零 PyTorch 依赖，CPU 推理极快。
+    """
+
+    def __init__(self, model_name: str | None = None):
+        super().__init__(model_name or "BAAI/bge-small-zh-v1.5")
+        self.model = None
+
+        import importlib.util
+
+        if importlib.util.find_spec("fastembed") is None:
+            raise ImportError(
+                "⚠️ 使用 FastEmbed 需要额外依赖，请在终端执行: pip install fastembed"
+            )
+
+    def _ensure_model_loaded(self):
+        """线程安全的懒加载机制"""
+        if self.model is None:
+            with self._model_lock:
+                if self.model is None:
+                    try:
+                        from fastembed import TextEmbedding
+                    except ImportError:
+                        raise ImportError(
+                            "⚠️ 使用 FastEmbed 需要额外依赖，"
+                            "请在终端执行: pip install fastembed"
+                        )
+                    logger.info(
+                        f"正在后台加载 FastEmbed 本地模型: {self.model_name} ... "
+                        "(首次加载可能需要极长时间下载)"
+                    )
+                    self.model = TextEmbedding(model_name=self.model_name)
+                    logger.info(f"FastEmbed 模型 {self.model_name} 加载完毕！")
+
+    def _encode_texts(self, texts: list[str]) -> list[list[float]]:
+        self._ensure_model_loaded()
+        assert self.model is not None
+        return [vec.tolist() for vec in self.model.embed(texts)]
+
+
+class SentenceTransformerEmbedder(BaseLocalEmbedder):
+    """
+    基于 Sentence-Transformers 的本地向量化引擎。
+    支持 GPU 加速，适合重度用户。
+    """
+
+    def __init__(self, model_name: str | None = None):
+        super().__init__(model_name or "BAAI/bge-small-zh-v1.5")
+        self.model = None
+
+        import importlib.util
+
+        if importlib.util.find_spec("sentence_transformers") is None:
+            raise ImportError(
+                "⚠️ 使用 SentenceTransformers 需要额外依赖，"
+                "请在终端执行: pip install sentence-transformers"
+            )
+
+    def _ensure_model_loaded(self):
+        """线程安全的懒加载机制"""
+        if self.model is None:
+            with self._model_lock:
+                if self.model is None:
+                    try:
+                        from sentence_transformers import (
+                            SentenceTransformer,
+                        )
+                    except ImportError:
+                        raise ImportError(
+                            "⚠️ 使用 SentenceTransformers 需要额外依赖，"
+                            "请在终端执行: pip install sentence-transformers"
+                        )
+                    logger.info(
+                        "正在后台加载 SentenceTransformer "
+                        f"本地模型: {self.model_name} ... "
+                        "(首次加载可能需要极长时间下载)"
+                    )
+                    self.model = SentenceTransformer(self.model_name)
+                    logger.info(
+                        f"SentenceTransformer 模型 {self.model_name} 加载完毕！"
+                    )
+
+    def _encode_texts(self, texts: list[str]) -> list[list[float]]:
+        self._ensure_model_loaded()
+        assert self.model is not None
+        embeddings = self.model.encode(texts)
+        return embeddings.tolist()

@@ -1,0 +1,23 @@
+{% if not frameless %}
+{% extends 'partials/_base.html' %}
+{% endif %}
+
+{% block head_extra %}
+{% endblock %}
+
+{% block body_content %}
+{% set dynamic_style = "padding: " ~ (data.options.padding | default('0px')) ~ "; gap: " ~ data.options.gap ~ "; align-items: " ~ data.options.align_items ~ ";" %}
+<div class="layout-row {{ data.extra_classes | join(' ') if data.extra_classes }}" style="{{ dynamic_style }} {{ data.inline_style_str }}">
+{% for item in data.children %}
+{% set item_style = "" %}
+{% if item.metadata and item.metadata.get('flex') %}
+{% set item_style = "flex: 1; min-width: 0;" %}
+{% endif %}
+<div class="layout-item" style="{{ item_style }}">
+    {{ render(item.component) }}
+</div>
+{% endfor %}
+</div>
+{% endblock %}
+
+{% block footer %}{% endblock %}

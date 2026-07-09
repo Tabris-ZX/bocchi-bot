@@ -1,0 +1,22 @@
+{
+  "tooltip": {
+    "trigger": "item"
+  },
+  "radar": {
+      "name": {
+          "textStyle": {
+              "color": "{{ theme.palette.colors.text_dark }}"
+          }
+      }
+  },
+  "series": [{
+      "lineStyle": {
+          "color": "{{ theme.palette.colors.primary }}",
+          "width": 2
+      },
+      "areaStyle": {
+          "color": "{{ theme.palette.colors.primary }}",
+          "opacity": 0.3
+      }
+  }]
+}

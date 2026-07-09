@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>电费余额提醒 - 预览</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'AlibabaHealthFont2', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: var(--color-background-card, #fce4ec);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            background: var(--color-background-main, #ffffff);
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(247, 123, 142, 0.15);
+            overflow: hidden;
+        }
+
+        .header {
+            background: var(--color-primary, #f06292);
+            color: #ffffff;
+            padding: 24px 20px;
+            text-align: center;
+            position: relative;
+        }
+
+        .header::before {
+            display: none;
+        }
+
+        .header h2 {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            position: relative;
+            z-index: 1;
+            opacity: 0.98;
+            letter-spacing: 0.3px;
+        }
+
+        .header p {
+            font-size: 12px;
+            margin-bottom: 5px;
+            opacity: 0.95;
+            position: relative;
+            z-index: 1;
+            line-height: 1.2;
+            letter-spacing: 0.2px;
+        }
+
+        .content {
+            padding: 20px 16px;
+        }
+
+        .user-item {
+            background: #fff9fa;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            border: 1px solid var(--color-border-light, #f8bbd9);
+            transition: all 0.2s ease;
+            position: relative;
+            box-shadow: 0 2px 8px rgba(247, 123, 142, 0.15);
+        }
+
+        .user-item:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(247, 123, 142, 0.25);
+            border-color: var(--color-primary, #f06292);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .user-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            margin-right: 10px;
+            object-fit: cover;
+            border: 2px solid #ff9a9e;
+        }
+
+        .user-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--color-text-dark, #2c3e50);
+            letter-spacing: 0.3px;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+        }
+
+        .balance-info {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .balance-label {
+            color: var(--color-primary, #f06292);
+            font-size: 14px;
+            font-weight: 500;
+            text-align: left;
+            letter-spacing: 0.2px;
+        }
+
+        .balance-amount {
+            font-size: 20px;
+            font-weight: 700;
+            color: #e91e63;
+            letter-spacing: 0.3px;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+        }
+
+        .balance-amount.low {
+            color: #f06292;
+        }
+
+        .balance-amount.medium {
+            color: #ff9800;
+        }
+
+        .balance-amount.high {
+            color: #27ae60;
+        }
+
+        .error-item {
+            background: linear-gradient(145deg, #fce4ec, #f8bbd9);
+            border-color: #f8bbd9;
+        }
+
+        .error-amount {
+            color: #c2185b;
+        }
+
+        .footer {
+            background: var(--color-background-main, #ffffff);
+            padding: 16px 20px;
+            text-align: center;
+            color: var(--color-primary, #8b4a6b);
+            font-size: 13px;
+            font-weight: 500;
+            letter-spacing: 0.3px;
+            border-top: 1px solid var(--color-border-light, #f8bbd9);
+            line-height: 1.4;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>小波奇为您送上今日电费余额（预览）</h2>
+            <p style="font-size: 12px;"> 私聊小波奇发送'账号绑定 dorm 宿舍id'来绑定宿舍</p>
+            <p style="font-size: 12px;"> 发送 '电费推送 开/关' 来控制每日电费推送</p>
+        </div>
+        <div class="content" id="content">
+            <!-- 示例用户数据将由脚本渲染 -->
+        </div>
+        <div class="footer">
+            <p>💡 余额不足记得及时充值哦~</p>
+        </div>
+    </div>
+
+    <script>
+        function avatarDataURI(name) {
+            try {
+                var initial = (name && name[0]) || 'U';
+                var code = initial.charCodeAt(0);
+                var hue = (code * 37) % 360;
+                var bg = 'hsl(' + hue + ', 70%, 85%)';
+                var fg = 'hsl(' + hue + ', 70%, 35%)';
+                var svg = "<svg xmlns='http://www.w3.org/2000/svg' width='28' height='28'>" +
+                    "<rect width='100%' height='100%' rx='14' ry='14' fill='" + bg + "'/>" +
+                    "<text x='50%' y='55%' text-anchor='middle' font-size='16' font-family='AlibabaHealthFont2, sans-serif' fill='" + fg + "'>" + initial + "</text>" +
+                    "</svg>";
+                return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+            } catch (e) {
+                return '';
+            }
+        }
+
+        function levelOf(balance) {
+            if (isNaN(balance)) return 'low';
+            if (balance <= 2) return 'low';
+            if (balance <= 10) return 'medium';
+            return 'high';
+        }
+
+        function render(users) {
+            var root = document.getElementById('content');
+            root.innerHTML = '';
+            users.forEach(function (u) {
+                var level = typeof u.balance === 'number' ? levelOf(u.balance) : 'low';
+                var item = document.createElement('div');
+                item.className = 'user-item' + (u.error ? ' error-item' : '');
+                var rightHtml = u.error
+                    ? '<span class="balance-amount error-amount">' + u.error + '</span>'
+                    : '<span class="balance-amount ' + level + '">' + u.balance.toFixed(2) + ' kWh</span>';
+                item.innerHTML = (
+                    '<div class="user-info">' +
+                    '<img class="user-avatar" src="' + avatarDataURI(u.name) + '" alt="' + (u.name || '') + '">' +
+                    '<div class="user-name">' + (u.name || '未知用户') + ' · ' + (u.dorm || '-') + '</div>' +
+                    '</div>' +
+                    '<div class="balance-info">' +
+                    '<div class="balance-label">' + (u.error ? '状态' : '当前余额') + '</div>' +
+                    rightHtml +
+                    '</div>'
+                );
+                root.appendChild(item);
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            var users = [
+                { name: '张三', dorm: 'A1-101', balance: 0.8 },
+                { name: '李四', dorm: 'A1-203', balance: 5.4 },
+                { name: '王五', dorm: 'B2-305', balance: 28.1 },
+                { name: '赵六', dorm: 'C1-402', error: '未绑定或暂时不可用' }
+            ];
+            render(users);
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,102 @@
+{% extends 'partials/_base.html' %}
+
+{% block head_extra %}
+    <style>
+        {% include 'pages/builtin/bot_profile/main.css' %}
+    </style>
+{% endblock %}
+
+{% block body_content %}
+    <div class="main-wrapper">
+        <h1 class="page-title">{{ data.title }}</h1>
+        <div class="top-section">
+            <div class="image-section">
+                <img src="{{ data.avatar }}" alt="{{ data.bot_name }}" class="bot-image">
+            </div>
+
+            <div class="info-section">
+                <div class="info-header">
+                    <div class="bot-name">{{ data.bot_name }}</div>
+                    <div class="tags-container">
+                        {% for tag in data.tags %}
+                        <span class="el-tag"
+                            style="background-color: {{ tag.color | default('#fdf1f5') }}; border-color: {{ tag.color | default('#e5aabe') }}; color: {% if tag.color and tag.color != '#fdf1f5' %}#FFFFFF{% else %}#f384a7{% endif %};">
+                            {{ tag.text }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="description-section">
+                    {% if data.bot_description and data.bot_description.strip() %}
+                        <!-- [修改] 直接使用新的 'md' 过滤器渲染 -->
+                        <div class="description-content markdown-content">{{ data.bot_description | md | safe }}</div>
+                    {% else %}
+                        <div class="description-content">
+                            <div class="empty-description">暂无介绍信息</div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% if data.thanks_user_list and data.thanks_user_list | length > 0 %}
+            <div class="thanks-container">
+                <div class="thanks-title">致谢名单</div>
+                <div class="thanks-list">
+                    {% for user in data.thanks_user_list %}
+                    <div class="thanks-item">
+                        <img
+                            src="{{ user.avatar }}"
+                            alt="{{ user.name }}"
+                            class="thanks-avatar"
+                            loading="eager"
+                            width="64"
+                            height="64"
+                        />
+                        <div class="thanks-name">{{ user.name }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="thanks-note">感谢有你们❤️</div>
+            </div>
+            {% endif %} {% include 'partials/_footer.html' %}
+        </div>
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                const markdownContent = `{{ bot_description | safe }}`;
+                const descriptionElement = document.getElementById(
+                    'description-content'
+                );
+
+                if (markdownContent.trim()) {
+                    if (
+                        window.marked &&
+                        typeof window.marked.parse === 'function'
+                    ) {
+                        descriptionElement.innerHTML =
+                            window.marked.parse(markdownContent);
+                    } else {
+                        // 兜底：无 marked 时，直接展示原始文本，避免阻塞
+                        descriptionElement.textContent = markdownContent;
+                    }
+                } else {
+                    descriptionElement.innerHTML =
+                        '<div class="empty-description">暂无介绍信息</div>';
+                }
+
+                // 应用标签颜色（避免在 style 属性中使用模板表达式以通过 linter）
+                document.querySelectorAll('.el-tag').forEach(function (el) {
+                    const bg = el.getAttribute('data-bg-color');
+                    const border = el.getAttribute('data-border-color');
+                    const color = el.getAttribute('data-text-color');
+                    if (bg) el.style.backgroundColor = bg;
+                    if (border) el.style.borderColor = border;
+                    if (color) el.style.color = color;
+                });
+            });
+        </script>
+    </div>
+{% endblock %}
+
+{% block page_scripts %}
+    <!-- [删除] 不再需要 _markdown_renderer.html -->
+{% endblock %}

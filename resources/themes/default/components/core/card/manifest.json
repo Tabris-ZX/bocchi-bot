@@ -1,0 +1,8 @@
+{
+  "name": "通用卡片容器",
+  "entrypoint": "main.html",
+  "styles": "style.css",
+  "render_options": {
+    "viewport": { "width": 600, "height": 10 }
+  }
+}

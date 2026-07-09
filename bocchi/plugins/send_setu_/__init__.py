@@ -1,0 +1,20 @@
+from pathlib import Path
+
+import nonebot
+from nonebot.plugin import PluginMetadata
+
+from bocchi.configs.utils import PluginExtraData
+from bocchi.utils.enum import PluginType
+
+__plugin_meta__ = PluginMetadata(
+    name="色图",
+    description="",
+    usage="",
+    extra=PluginExtraData(
+        author="HibiKier",
+        version="0.4",
+        plugin_type=PluginType.PARENT,
+    ).to_dict(),
+)
+
+nonebot.load_plugins(str(Path(__file__).parent.resolve()))

@@ -1,0 +1,308 @@
+{# ==========================================================================
+   VISUAL EFFECTS MACROS
+   包含: 排版修饰(Typography), 装饰元素(Decorations), 头像框(Frames)
+   ========================================================================== #}
+
+{# --- 1. Typography (原 typography.jinja) --- #}
+{# 
+    Typography Decorators
+    用于增强标题和文本表现力的修饰符
+#}
+
+{# 1. 马克笔高光 (Highlighter) - 放在文字下层 #}
+{% macro text_highlight(text, color='#ffeb3b') %}
+<span style="position: relative; display: inline-block; padding: 0 4px;">
+    <span style="position: absolute; bottom: 4px; left: 0; width: 100%; height: 33.333%; z-index: -10; transform: skewX(-12deg); background-color: {{ color }}; opacity: 0.6;"></span>
+    <span style="position: relative; z-index: 10;">{{ text }}</span>
+</span>
+{% endmacro %}
+
+{# 2. 科技括号 (Tech Brackets) #}
+{% macro text_brackets_tech(text, color='currentColor') %}
+<div style="display: inline-flex; align-items: center; gap: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; color: {{ color }}">
+    <svg width="10" height="24" viewBox="0 0 10 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M8 0 H2 V24 H8" />
+    </svg>
+    <span>{{ text }}</span>
+    <svg width="10" height="24" viewBox="0 0 10 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M2 0 H8 V24 H2" />
+    </svg>
+</div>
+{% endmacro %}
+
+{# 3. 锯齿下划线 (Zigzag Underline) #}
+{% macro text_underline_zigzag(text, color='#ff4757') %}
+<span style="position: relative; display: inline-block; padding-bottom: 4px;">
+    {{ text }}
+    <svg style="position: absolute; bottom: 0; left: 0; width: 100%; height: 8px;" preserveAspectRatio="none" viewBox="0 0 100 10">
+        <pattern id="pat-zigzag-line" x="0" y="0" width="20" height="10" patternUnits="userSpaceOnUse">
+            <path d="M0 10 L10 0 L20 10" fill="none" stroke="{{ color }}" stroke-width="2"/>
+        </pattern>
+        <rect width="100%" height="100%" fill="url(#pat-zigzag-line)"/>
+    </svg>
+</span>
+{% endmacro %}
+
+{# 4. 巨型引号背景 (Big Quote) - 用于引用块 #}
+{% macro text_quote_bg(content, color='#ddd') %}
+<div style="position: relative; padding: 32px; overflow: hidden;">
+    <svg style="position: absolute; top: 0; left: 0; width: 64px; height: 64px; opacity: 0.3; fill: {{ color }}" viewBox="0 0 24 24">
+        <path d="M14.017 21L14.017 18C14.017 16.8954 14.9124 16 16.017 16H19.017C19.5693 16 20.017 15.5523 20.017 15V9C20.017 8.44772 19.5693 8 19.017 8H15.017C14.4647 8 14.017 8.44772 14.017 9V11C14.017 11.5523 13.5693 12 13.017 12H12.017V5H22.017V15C22.017 18.3137 19.3307 21 16.017 21H14.017ZM5.0166 21L5.0166 18C5.0166 16.8954 5.91203 16 7.0166 16H10.0166C10.5689 16 11.0166 15.5523 11.0166 15V9C11.0166 8.44772 10.5689 8 10.0166 8H6.0166C5.46432 8 5.0166 8.44772 5.0166 9V11C5.0166 11.5523 4.56889 12 4.0166 12H3.0166V5H13.0166V15C13.0166 18.3137 10.3303 21 7.0166 21H5.0166Z"/>
+    </svg>
+    <div style="position: relative; z-index: 10; font-size: 1.125rem; line-height: 1.75rem; font-family: ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif; font-style: italic; color: #374151;">
+        {{ content }}
+    </div>
+</div>
+{% endmacro %}
+
+{# 5. RPG 对话框文字 (RPG Box) #}
+{% macro text_rpg_box(text, bg='#333', border='#fff', text_color='#fff') %}
+<div style="display: inline-block; padding: 8px 16px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 14px; background: {{ bg }}; color: {{ text_color }}; border: 4px solid {{ bg }}; box-shadow: 0 0 0 2px {{ border }}, inset 0 0 0 2px {{ border }};">
+    {{ text }}
+</div>
+{% endmacro %}
+
+{# 6. 手绘圈重点 (Hand Circle) #}
+{% macro text_marker_circle(text, color='#e74c3c') %}
+<span style="position: relative; display: inline-block; padding: 0 8px;">
+    <svg style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: -10; transform: scale(1.1);" viewBox="0 0 100 40" preserveAspectRatio="none">
+        <path d="M5 20 Q 25 5 50 5 T 95 20 T 50 35 T 5 20" fill="none" stroke="{{ color }}" stroke-width="2" stroke-dasharray="5,2"/>
+    </svg>
+    {{ text }}
+</span>
+{% endmacro %}
+
+{# 7. 科技标签 (Tech Tag) #}
+{% macro text_tag_tech(text, color='#0984e3') %}
+<span style="display: inline-flex; align-items: center; padding: 4px 8px; font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em; color: {{ color }}; border: 1px solid {{ color }}; border-left-width: 4px; background: rgba(9, 132, 227, 0.1);">
+    {{ text }}
+</span>
+{% endmacro %}
+
+{# --- 2. Frames & Masks (原 frames.jinja) --- #}
+{# 
+    Avatar Frames & Masks
+    用于包裹或遮罩头像/图片的容器
+#}
+
+{# 1. 猫耳头像框 (Cat Ears) #}
+{% macro frame_cat(img_src, size=80, border_color='#f3a683') %}
+<div style="position: relative; display: inline-block; width: {{ size }}px; height: {{ size }}px;">
+    <svg style="position: absolute; top: -8px; left: 0; width: 100%; height: 100%; z-index: 0; color: {{ border_color }};" viewBox="0 0 100 100">
+        <path d="M15 35 L10 10 L35 20" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M85 35 L90 10 L65 20" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+    </svg>
+    <div style="position: relative; z-index: 10; width: 100%; height: 100%; border-radius: 9999px; overflow: hidden; border-width: 4px; border-style: solid; border-color: {{ border_color }}; background: #fff;">
+        <img src="{{ img_src }}" style="width: 100%; height: 100%; object-fit: cover;">
+    </div>
+</div>
+{% endmacro %}
+
+{# 2. 荣誉月桂 (Laurel Wreath) #}
+{% macro frame_laurel(img_src, size=80, color='#f1c40f') %}
+<div style="position: relative; display: inline-flex; justify-content: center; align-items: center; width: {{ size * 1.4 }}px; height: {{ size * 1.2 }}px;">
+    <svg style="position: absolute; width: 100%; height: 100%; color: {{ color }}; z-index: 2; pointer-events: none;" viewBox="0 0 100 100">
+        <path d="M10 80 Q5 50 30 20" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+        <path d="M90 80 Q95 50 70 20" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+        <circle cx="10" cy="80" r="2" fill="currentColor"/>
+        <circle cx="90" cy="80" r="2" fill="currentColor"/>
+        <circle cx="30" cy="20" r="2" fill="currentColor"/>
+        <circle cx="70" cy="20" r="2" fill="currentColor"/>
+    </svg>
+    <div style="width: {{ size }}px; height: {{ size }}px; border-radius: 50%; overflow: hidden; border: 2px solid {{ color }};">
+        <img src="{{ img_src }}" style="width: 100%; height: 100%; object-fit: cover;">
+    </div>
+</div>
+{% endmacro %}
+
+{# 3. 科技六边形 (Tech Hex) #}
+{% macro frame_tech_hex(img_src, size=80, color='#00d2d3') %}
+<div style="position: relative; display: inline-block; width: {{ size }}px; height: {{ size }}px; clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);">
+    <div style="position: absolute; top: 0; right: 0; bottom: 0; left: 0; background-color: currentColor; opacity: 0.2; color: {{ color }}"></div>
+    <div style="position: absolute; top: 2px; right: 2px; bottom: 2px; left: 2px; background-color: white; clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);">
+        <img src="{{ img_src }}" style="width: 100%; height: 100%; object-fit: cover;">
+    </div>
+    <div style="position: absolute; bottom: 0; left: 50%; width: 100%; height: 4px; background-color: currentColor; transform: translateX(-50%); color: {{ color }}"></div>
+</div>
+{% endmacro %}
+
+{# 4. 故障错位框 (Glitch) #}
+{% macro frame_glitch(img_src, size=80) %}
+<div style="position: relative; display: inline-block; width: {{ size }}px; height: {{ size }}px;">
+    <div style="position: absolute; top: 4px; left: 4px; width: 100%; height: 100%; background-color: #ef4444; border-radius: 8px; opacity: 0.7; mix-blend-mode: multiply;"></div>
+    <div style="position: absolute; top: -4px; left: -4px; width: 100%; height: 100%; background-color: #3b82f6; border-radius: 8px; opacity: 0.7; mix-blend-mode: multiply;"></div>
+    <img src="{{ img_src }}" style="position: relative; z-index: 10; width: 100%; height: 100%; object-fit: cover; border-radius: 8px; border: 2px solid white; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);">
+</div>
+{% endmacro %}
+
+{# --- 3. Atmosphere & Stickers (原 decorations.jinja) --- #}
+{# 
+    Atmosphere & Decorations
+    纯装饰性元素，漫符，氛围贴纸
+#}
+
+{# 1. 漫符：生气 (Anger) - 放在头像或气泡右上角 #}
+{% macro manga_anger(class='', size=40, color='#ff4757') %}
+<svg class="{{ class }}" width="{{ size }}" height="{{ size }}" viewBox="0 0 100 100" fill="none" stroke="{{ color }}" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M20 20 L40 40 M40 20 L20 40" />
+    <path d="M60 20 L80 40 M80 20 L60 40" />
+    <path d="M20 60 L40 80 M40 60 L20 80" />
+    <path d="M60 60 L80 80 M80 60 L60 80" />
+</svg>
+{% endmacro %}
+
+{# 2. 漫符：流汗 (Sweat) - 放在头像左侧 #}
+{% macro manga_sweat(class='', size=40, color='#3498db') %}
+<svg class="{{ class }}" width="{{ size }}" height="{{ size }}" viewBox="0 0 100 100" fill="{{ color }}">
+    <path d="M50 10 C50 10 20 60 20 75 A30 30 0 0 0 80 75 C80 60 50 10 50 10 Z" opacity="0.8"/>
+    <path d="M85 30 C85 30 70 55 70 62 A15 15 0 0 0 100 62 C100 55 85 30 85 30 Z" opacity="0.6"/>
+</svg>
+{% endmacro %}
+
+{# 3. 角落缎带 (Corner Ribbon) - 放在卡片容器内 #}
+{% macro deco_corner_ribbon(text="NEW", bg_color="#ff4757", text_color="#fff") %}
+<div style="position: absolute; top: 0; right: 0; width: 80px; height: 80px; overflow: hidden; pointer-events: none; z-index: 10;">
+    <div style="position: absolute; top: 15px; right: -30px; width: 120px; background: {{ bg_color }}; color: {{ text_color }}; text-align: center; transform: rotate(45deg); font-size: 12px; font-weight: bold; padding: 4px 0; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
+        {{ text }}
+    </div>
+</div>
+{% endmacro %}
+
+{# 4. 和纸胶带 (Washi Tape) - 模拟贴在图片上方 #}
+{% macro deco_washi(class='', width='120px', height='30px', color='#badc58', pattern='dots') %}
+<div class="{{ class }}" 
+     style="width: {{ width }}; height: {{ height }}; background-color: {{ color }}; 
+            mask-image: url('data:image/svg+xml;utf8,<svg viewBox=\'0 0 200 50\' xmlns=\'http://www.w3.org/2000/svg\'><path d=\'M0,0 L200,2 L198,48 L2,50 Z\' fill=\'black\'/></svg>');
+            -webkit-mask-image: url('data:image/svg+xml;utf8,<svg viewBox=\'0 0 200 50\' xmlns=\'http://www.w3.org/2000/svg\'><path d=\'M0,0 L200,2 L198,48 L2,50 Z\' fill=\'black\'/></svg>');
+            mask-size: 100% 100%; opacity: 0.8; transform: rotate(-2deg);
+            background-image: repeating-linear-gradient(45deg, rgba(255,255,255,0.3) 0, rgba(255,255,255,0.3) 10px, transparent 10px, transparent 20px);">
+</div>
+{% endmacro %}
+
+{# 5. 科技 HUD 圈 (Tech Circle) - 纯装饰背景 #}
+{% macro deco_hud(class='', size=100, color='#2ecc71') %}
+<svg class="{{ class }}" width="{{ size }}" height="{{ size }}" viewBox="0 0 100 100" fill="none" stroke="{{ color }}">
+    <circle cx="50" cy="50" r="45" stroke-width="1" stroke-opacity="0.3" />
+    <path d="M50 5 V15 M50 85 V95 M5 50 H15 M85 50 H95" stroke-width="2" />
+    <path d="M50 20 A30 30 0 0 1 80 50" stroke-width="3" stroke-opacity="0.8" />
+    <path d="M50 80 A30 30 0 0 1 20 50" stroke-width="3" stroke-opacity="0.8" />
+</svg>
+{% endmacro %}
+
+{# 6. 战术准星 (Crosshair) - 居中装饰 #}
+{% macro deco_crosshair(class='', size=60, color='#e74c3c') %}
+<svg class="{{ class }}" width="{{ size }}" height="{{ size }}" viewBox="0 0 100 100" fill="none" stroke="{{ color }}">
+    <circle cx="50" cy="50" r="20" stroke-width="1"/>
+    <line x1="50" y1="0" x2="50" y2="20" stroke-width="2"/>
+    <line x1="50" y1="80" x2="50" y2="100" stroke-width="2"/>
+    <line x1="0" y1="50" x2="20" y2="50" stroke-width="2"/>
+    <line x1="80" y1="50" x2="100" y2="50" stroke-width="2"/>
+    <circle cx="50" cy="50" r="2" fill="{{ color }}" stroke="none"/>
+</svg>
+{% endmacro %}
+
+{# 7. 漂浮音符 (Music Notes) - 氛围装饰 #}
+{% macro deco_music_notes(class='', size=50, color='#9b59b6') %}
+<svg class="{{ class }}" width="{{ size }}" height="{{ size }}" viewBox="0 0 100 100" fill="{{ color }}">
+    <path d="M10 60 Q20 50 30 60 T50 60" stroke="{{ color }}" fill="none" stroke-width="2" opacity="0.5"/>
+    <text x="20" y="40" font-size="30" style="font-family: sans-serif;">♪</text>
+    <text x="60" y="70" font-size="40" style="font-family: sans-serif;">♫</text>
+</svg>
+{% endmacro %}
+
+{# 8. 警示条纹块 (Warning Stripe) - 侧边装饰 #}
+{% macro deco_warning_stripe(class='', width='20px', height='100%', color='#f1c40f', bg='#2c3e50') %}
+<div class="{{ class }}" style="width: {{ width }}; height: {{ height }}; background: repeating-linear-gradient(45deg, {{ bg }}, {{ bg }} 10px, {{ color }} 10px, {{ color }} 20px);"></div>
+{% endmacro %}
+
+{# 9. 蜂巢网格块 (Hex Grid Block) - 背景点缀 #}
+{% macro deco_hex_grid(class='', size=100, color='currentColor') %}
+<svg class="{{ class }}" width="{{ size }}" height="{{ size }}" viewBox="0 0 100 100" fill="none" stroke="{{ color }}" stroke-opacity="0.2">
+    <pattern id="pat-deco-hex" width="20" height="34" patternUnits="userSpaceOnUse">
+         <path d="M10 0 L20 5 V15 L10 20 L0 15 V5 Z" />
+    </pattern>
+    <rect width="100%" height="100%" fill="url(#pat-deco-hex)"/>
+</svg>
+{% endmacro %}
+
+{# 10. 漫画爆炸 (Comic Pow) #}
+{% macro deco_comic_pow(text="POW!", size=80, color='#ff9f43') %}
+<div style="position: relative; display: flex; align-items: center; justify-content: center; width: {{ size }}px; height: {{ size }}px;">
+    <svg style="position: absolute; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%;" viewBox="0 0 100 100" fill="{{ color }}">
+        <path d="M50 0 L60 35 L95 25 L70 55 L100 80 L65 75 L50 100 L35 75 L0 80 L30 55 L5 25 L40 35 Z" />
+    </svg>
+    <span style="position: relative; z-index: 10; font-weight: 900; font-style: italic; color: white; font-size: {{ size/4 }}px; transform: rotate(-10deg);">{{ text }}</span>
+</div>
+{% endmacro %}
+
+{# 11. 别针 (Paperclip) - 放在纸张/卡片边缘 #}
+{% macro deco_paperclip(size=40, color='#bdc3c7') %}
+<svg width="{{ size }}" height="{{ size }}" viewBox="0 0 24 24" fill="none" stroke="{{ color }}" stroke-width="2" stroke-linecap="round" style="filter: drop-shadow(1px 1px 1px rgba(0,0,0,0.2));">
+    <path d="M13.5 5.5l-9 9a4.95 4.95 0 1 0 7 7l9-9a7.78 7.78 0 1 0-11-11l-9 9" />
+</svg>
+{% endmacro %}
+
+{# 12. 灯泡/提示 (Lightbulb) #}
+{% macro deco_lightbulb(size=40, color='#f1c40f') %}
+<svg width="{{ size }}" height="{{ size }}" viewBox="0 0 24 24" fill="{{ color }}">
+    <path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7zm2.85 11.1l-.85.6V16h-4v-2.3l-.85-.6A4.997 4.997 0 0 1 7 9c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.63-.8 3.16-2.15 4.1z"/>
+</svg>
+{% endmacro %}
+
+{# 13. 条形码 (Barcode) #}
+{% macro deco_barcode(width=100, height=30, color='#000') %}
+<svg width="{{ width }}" height="{{ height }}" preserveAspectRatio="none" viewBox="0 0 100 30">
+    <pattern id="pat-barcode" x="0" y="0" width="4" height="30" patternUnits="userSpaceOnUse">
+        <rect x="0" y="0" width="1" height="30" fill="{{ color }}"/>
+        <rect x="2" y="0" width="1.5" height="30" fill="{{ color }}"/>
+    </pattern>
+    <rect width="100%" height="100%" fill="url(#pattern-barcode)"/>
+</svg>
+{% endmacro %}
+
+{# 14. WiFi 信号 #}
+{% macro deco_wifi(size=30, color='currentColor') %}
+<svg width="{{ size }}" height="{{ size }}" viewBox="0 0 24 24" fill="none" stroke="{{ color }}" stroke-width="2" stroke-linecap="round">
+    <path d="M5 12.55a11 11 0 0 1 14.08 0" />
+    <path d="M1.42 9a16 16 0 0 1 21.16 0" />
+    <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+    <line x1="12" y1="20" x2="12.01" y2="20" stroke-width="3"/>
+</svg>
+{% endmacro %}
+
+{# 15. 电池电量 #}
+{% macro deco_battery(level=80, size=30, color='currentColor') %}
+<svg width="{{ size }}" height="{{ size/2 }}" viewBox="0 0 24 12" fill="none" stroke="{{ color }}">
+    <rect x="1" y="1" width="20" height="10" rx="2" stroke-width="2"/>
+    <line x1="23" y1="4" x2="23" y2="8" stroke-width="2"/>
+    <rect x="3" y="3" width="{{ 16 * (level/100) }}" height="6" fill="{{ color }}" stroke="none"/>
+</svg>
+{% endmacro %}
+
+{# 16. 抽象斑点 (Organic Blob) #}
+{% macro deco_blob(size=100, color='#ff7675') %}
+<svg width="{{ size }}" height="{{ size }}" viewBox="0 0 200 200" fill="{{ color }}">
+    <path d="M44.7,-76.4C58.9,-69.2,71.8,-59.1,79.6,-46.9C87.4,-34.7,90.1,-20.4,85.8,-8.3C81.5,3.8,70.2,13.7,62.1,24.8C54,35.9,49.1,48.2,40.6,57.7C32.1,67.2,20,73.9,6.9,77.9C-6.2,81.9,-20.3,83.2,-32.4,77.3C-44.5,71.4,-54.6,58.3,-63.1,45.2C-71.6,32.1,-78.5,19,-77.9,6.3C-77.3,-6.4,-69.2,-18.7,-60.3,-30.3C-51.4,-41.9,-41.7,-52.8,-30.3,-61.3C-18.9,-69.8,-5.8,-75.9,8.1,-76.9C22,-77.9,44,-73.8,44.7,-76.4Z" transform="translate(100 100)" />
+</svg>
+{% endmacro %}
+
+{# 17. 新消息红点 (Badge Dot) #}
+{% macro deco_notification_dot(size=12, color='#ff4757') %}
+<span style="position: absolute; top: 0; right: 0; display: flex; height: {{ size }}px; width: {{ size }}px;">
+  <!-- Removed animation for static rendering compatibility -->
+  <span style="position: relative; display: inline-flex; border-radius: 9999px; height: {{ size }}px; width: {{ size }}px; background-color: {{ color }}"></span>
+</span>
+{% endmacro %}
+
+{# 18. 引用引号 (Quotes) #}
+{% macro deco_quote_mark(size=40, color='#dfe6e9') %}
+<svg width="{{ size }}" height="{{ size }}" viewBox="0 0 24 24" fill="{{ color }}">
+    <path d="M14.017 21L14.017 18C14.017 16.8954 14.9124 16 16.017 16H19.017C19.5693 16 20.017 15.5523 20.017 15V9C20.017 8.44772 19.5693 8 19.017 8H15.017C14.4647 8 14.017 8.44772 14.017 9V11C14.017 11.5523 13.5693 12 13.017 12H12.017V5H22.017V15C22.017 18.3137 19.3307 21 16.017 21H14.017ZM5.0166 21L5.0166 18C5.0166 16.8954 5.91203 16 7.0166 16H10.0166C10.5689 16 11.0166 15.5523 11.0166 15V9C11.0166 8.44772 10.5689 8 10.0166 8H6.0166C5.46432 8 5.0166 8.44772 5.0166 9V11C5.0166 11.5523 4.56889 12 4.0166 12H3.0166V5H13.0166V15C13.0166 18.3137 10.3303 21 7.0166 21H5.0166Z" />
+</svg>
+{% endmacro %}
+
+{# 19. 邮票边缘 (Stamp Edge) #}
+{% macro deco_stamp_edge(color='#fff', size=10) %}
+<div style="width: 100%; height: {{ size }}px; background-color: transparent; background-image: radial-gradient({{ color }} 50%, transparent 50%); background-size: {{ size*2 }}px {{ size*2 }}px; background-position: 0 {{ size }}px;"></div>
+{% endmacro %}
+

@@ -1,0 +1,33 @@
+.alert {
+    padding: 15px 20px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+.alert-icon {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    margin-top: 2px;
+}
+.alert-content {
+    flex-grow: 1;
+}
+.alert-title {
+    font-weight: bold;
+    margin: 0 0 5px 0;
+    font-size: 1.1em;
+}
+.alert-text {
+    margin: 0;
+    line-height: 1.6;
+    font-size: 0.95em;
+}
+
+/* Color Variants */
+.alert.info { background-color: #e6f7ff; border-color: #91d5ff; color: #0050b3; }
+.alert.success { background-color: #f6ffed; border-color: #b7eb8f; color: #237804; }
+.alert.warning { background-color: #fffbe6; border-color: #ffe58f; color: #ad6800; }
+.alert.error { background-color: #fff1f0; border-color: #ffccc7; color: #a8071a; }

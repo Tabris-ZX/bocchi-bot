@@ -1,0 +1,114 @@
+body {
+    background-color: var(--color-table-container-bg);
+    padding: 20px;
+}
+
+.container {
+    background-color: var(--color-table-bg);
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(246, 113, 134, 0.2);
+    overflow: hidden;
+}
+
+.header {
+    padding: 25px 30px;
+    text-align: center;
+    margin-bottom: 25px;
+}
+
+.header h1 {
+    margin: 0;
+    font-size: 32px;
+    color: var(--color-primary);
+    font-family: var(--font-header, "fzrzFont");
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-shadow: 1px 1px 3px rgba(0,0,0,0.1);
+}
+
+.header p {
+    margin: 8px 0 0;
+    color: var(--color-text-muted);
+    font-size: 14px;
+}
+
+.header p code {
+    background-color: rgba(246, 113, 134, 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: monospace;
+    color: var(--color-primary);
+}
+
+.table-wrapper {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    border-spacing: 0;
+    font-size: 15px;
+    color: var(--color-text-dark);
+}
+
+th, td {
+    padding: 18px 20px;
+    text-align: left;
+    vertical-align: middle;
+    border: none;
+}
+
+tbody td {
+    font-family: "AlibabaHealthFont2", sans-serif;
+    border-bottom: 1px solid rgba(246, 113, 134, 0.15);
+}
+
+thead {
+}
+
+thead th {
+    color: var(--color-table-header-text);
+    font-family: "fzrzFont", sans-serif;
+    font-weight: bold;
+    font-size: 17px;
+    background-color: var(--color-background-main);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    border-bottom: 2px solid var(--color-border-light);
+}
+
+tbody tr {
+}
+
+tbody tr:last-child td {
+    border-bottom: none;
+}
+
+tbody tr:nth-child(even) {
+    background-color: var(--color-table-row-even-bg);
+}
+
+.cell-image {
+    vertical-align: middle;
+    border-radius: 4px;
+}
+
+.cell-image.circular {
+    border-radius: 50%;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: bold;
+    color: white;
+    white-space: nowrap;
+}
+
+.status-badge.ok, .status-badge.success { background-color: var(--color-accent-green); }
+.status-badge.error { background-color: var(--color-accent-red); }
+.status-badge.warning { background-color: #E6A23C; }
+.status-badge.info { background-color: #909399; }

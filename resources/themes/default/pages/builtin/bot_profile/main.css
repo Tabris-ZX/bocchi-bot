@@ -1,0 +1,432 @@
+/* 字体定义 */
+  @font-face {
+      font-family: 'AlibabaHealthFont2';
+      src: url('../../font/AlibabaHealthFont2.0CN-85B.ttf');
+      font-weight: 700;
+      font-style: normal;
+      font-display: swap;
+  }
+
+  /* 全局重置与基础样式 */
+  * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+  }
+
+  /* HTML 和 Body 样式 */
+  html,
+  body {
+      /* width: 100%;
+  height: 100%; */
+      /* 确保body占满视口 */
+      /* overflow: hidden; */
+      /* 页面整体不允许滚动 */
+  }
+
+  body {
+      font-family: 'AlibabaHealthFont2';
+      background-color: #ffc0cb;
+      padding: 20px;
+  }
+
+  /* 主容器 */
+  .main-wrapper {
+      background-color: #fce4ec;
+      border-radius: 20px;
+      box-shadow: 0 10px 30px rgba(189, 140, 155, 0.5);
+      display: flex;
+      flex-direction: column;
+      padding: 30px;
+      gap: 25px;
+  }
+
+  /* 上部容器：图片与信息 */
+  .top-section {
+      /* top-section高度自适应其内部内容 */
+      display: flex;
+      gap: 25px;
+      overflow: hidden;
+      /* 内部溢出隐藏 */
+      flex-shrink: 0;
+      /* 防止top-section在空间不足时缩小 */
+  }
+
+  /* 图片区域 */
+  .image-section {
+      width: 350px;
+      height: auto;
+      /* 让高度自适应图片内容，但受父容器top-section限制 */
+      background-color: #fffbfc;
+      border-radius: 18px;
+      border: #e5aabe 3px solid;
+      padding: 25px;
+      overflow: hidden;
+      /* 确保图片超出部分被隐藏 */
+      box-shadow: 0 6px 18px rgba(208, 178, 188, 0.4);
+  }
+
+  /* Bot 图片 */
+  .bot-image {
+      width: 100%;
+      height: 100%;
+      /* 高度完全填充父容器（image-section的padding内部） */
+      object-fit: cover;
+      border-radius: 15px;
+      box-shadow: 0 5px 15px rgba(208, 178, 188, 0.5);
+  }
+
+  /* 信息区域 */
+  .info-section {
+      width: calc(100% - 400px - 25px);
+      background-color: #fffbfc;
+      border-radius: 18px;
+      border: #e5aabe 3px solid;
+      padding: 30px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      /* 内部溢出隐藏 */
+      box-shadow: 0 6px 18px rgba(208, 178, 188, 0.4);
+      flex-grow: 1;
+      /* 允许info-section占用剩余空间 */
+  }
+
+  /* 头部信息容器 (包含名称和标签) */
+  .info-header {
+      background-color: transparent;
+      border-radius: 0;
+      padding: 0;
+      margin-bottom: 25px;
+      border: none;
+      box-shadow: none;
+
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      /* 保持原有的居中设置 */
+
+      padding-bottom: 20px;
+      border-bottom: 2px solid #f0b6ca;
+      /* 保持原样，不修改Bot名称和标签容器的高度限制 */
+  }
+
+  /* Bot 名称 */
+  .bot-name {
+      font-size: 36px;
+      color: #f7a0b5;
+      margin-bottom: 15px;
+      text-shadow: 1px 2px 5px rgba(208, 178, 188, 0.5);
+      letter-spacing: 1.5px;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      line-height: 1.2;
+      text-align: center;
+      width: 100%;
+  }
+
+  /* 标签容器 */
+  .tags-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      align-items: center;
+      max-height: 80px;
+      /* 保持原样，不修改 */
+      overflow: hidden;
+      /* 保持原样，不修改 */
+      padding: 5px 0;
+  }
+
+  /* 类似 El-tag 的样式 */
+  .el-tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 14px;
+      line-height: 1;
+      white-space: nowrap;
+      box-sizing: border-box;
+      border: 1px solid;
+      color: #f384a7;
+      background-color: #fdf1f5;
+  }
+
+  /* 简介区域 */
+  .description-section {
+      /* 让简介区域自适应，占用info-section的剩余空间 */
+      flex-grow: 1;
+      background-color: #fff9fb;
+      border-radius: 12px;
+      padding: 20px;
+      border: #e5aabe 2px solid;
+      box-shadow: inset 0 2px 8px rgba(208, 178, 188, 0.2);
+      /* overflow: hidden; */
+      /* 确保简介内容溢出时被隐藏，无滚动条 */
+  }
+
+  .description-content {
+      line-height: 1.7;
+      color: #f384a7;
+      font-size: 15px;
+      height: 100%;
+      /* 确保内容占据全部高度 */
+      /* overflow: hidden; */
+      /* 确保内容溢出时被隐藏，无滚动条 */
+      /* padding-right: 10px; 移除滚动条空间 */
+  }
+
+  /* Markdown 标题样式 */
+  .description-content h1 {
+      font-size: 28px;
+      margin-bottom: 20px;
+      color: #f7a0b5;
+      border-bottom: 4px solid #f0b6ca;
+      padding-bottom: 12px;
+      text-align: left;
+  }
+
+  .description-content h2 {
+      font-size: 24px;
+      margin-top: 25px;
+      margin-bottom: 15px;
+      color: #f384a7;
+      padding-bottom: 8px;
+      border-bottom: 1px dashed #f5dce4;
+  }
+
+  .description-content h3 {
+      font-size: 20px;
+      margin-top: 20px;
+      margin-bottom: 12px;
+      color: #fd9fb5;
+  }
+
+  .description-content p {
+      margin-bottom: 15px;
+  }
+
+  .description-content ul,
+  .description-content ol {
+      margin-left: 20px;
+      margin-bottom: 15px;
+      list-style-position: outside;
+  }
+
+  .description-content li {
+      margin-bottom: 8px;
+      color: #f384a7;
+  }
+
+  .description-content li::marker {
+      color: #fd9fb5;
+      font-weight: bold;
+  }
+
+  .description-content blockquote {
+      border-left: 5px solid #f384a7;
+      padding-left: 15px;
+      margin: 15px 0;
+      font-style: italic;
+      color: #dda6b8;
+      background-color: #fdf1f5;
+      padding: 10px 15px;
+      border-radius: 8px;
+      box-shadow: inset 0 1px 3px rgba(208, 178, 188, 0.1);
+  }
+
+  .description-content code {
+      background-color: #fdf1f5;
+      padding: 3px 8px;
+      border-radius: 5px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      color: #f384a7;
+      border: 1px solid #e5aabe;
+  }
+
+  .description-content pre {
+      background-color: #fdf1f5;
+      padding: 15px;
+      border-radius: 10px;
+      overflow-x: hidden;
+      margin: 15px 0;
+      border: 2px solid #e5aabe;
+      box-shadow: 0 2px 8px rgba(208, 178, 188, 0.3);
+  }
+
+  .description-content pre code {
+      background-color: transparent;
+      padding: 0;
+      border: none;
+      display: block;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      /* overflow: hidden; */
+  }
+
+  .description-content strong {
+      color: #f384a7;
+  }
+
+  .description-content em {
+      color: #fd9fb5;
+  }
+
+  .description-content a {
+      color: #f384a7;
+      text-decoration: none;
+      border-bottom: 1px solid #f7a0b5;
+  }
+
+  .description-content a:hover {
+      background-color: #fdf1f5;
+      border-bottom: 2px solid #f384a7;
+      padding-bottom: 2px;
+  }
+
+  .description-content table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 15px 0;
+      background-color: #fff9fb;
+      border: 2px solid #e5aabe;
+      border-radius: 10px;
+      /* overflow: hidden; */
+      box-shadow: 0 2px 8px rgba(208, 178, 188, 0.2);
+  }
+
+  .description-content th,
+  .description-content td {
+      border: 1px solid #e5aabe;
+      padding: 10px;
+      text-align: left;
+  }
+
+  .description-content th {
+      background-color: #fdf1f5;
+      color: #f384a7;
+      font-size: 16px;
+  }
+
+  .description-content td {
+      color: #f384a7;
+      font-size: 14px;
+  }
+
+  .description-content hr {
+      border: none;
+      height: 3px;
+      background: linear-gradient(
+          to right,
+          #f7a0b5,
+          #ffc0cb,
+          #f7a0b5
+      );
+      margin: 25px 0;
+      border-radius: 2px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  .empty-description {
+      text-align: center;
+      color: #dda6b8;
+      font-style: italic;
+      padding: 40px;
+      font-size: 18px;
+  }
+
+  .page-title {
+      font-family: 'AlibabaHealthFont2';
+      font-size: 48px;
+      /* 标题字体更大 */
+      color: #f7a0b5;
+      /* 使用主题色 */
+      text-align: center;
+      margin-bottom: 15px;
+      /* 增加与下方内容的间距 */
+      text-shadow: 2px 3px 8px rgba(189, 140, 155, 0.6);
+      /* 更明显的阴影效果 */
+      letter-spacing: 2px;
+      /* 增加字间距 */
+      padding-top: 10px;
+      /* 顶部内边距 */
+  }
+  /* 致谢区域 */
+  .thanks-container {
+      background-color: #fffbfc;
+      border-radius: 18px;
+      border: #e5aabe 3px solid;
+      padding: 30px;
+      box-shadow: 0 6px 18px rgba(208, 178, 188, 0.4);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+  }
+
+  .thanks-title {
+      font-size: 32px;
+      color: #f7a0b5;
+      text-align: center;
+      border-bottom: 3px solid #f0b6ca;
+      padding-bottom: 15px;
+      text-shadow: 1px 2px 4px rgba(208, 178, 188, 0.3);
+      flex-shrink: 0;
+  }
+
+  .thanks-list {
+      display: flex;
+      flex-wrap: wrap; /* 自动换行 */
+      gap: 15px; /* 项目间距 */
+      justify-content: flex-start;
+  }
+
+  .thanks-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100px; /* 设个合适宽度 */
+      word-wrap: break-word; /* 名字可以换行 */
+      text-align: center;
+  }
+
+  .thanks-avatar {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      object-fit: cover;
+      margin-bottom: 6px;
+  }
+
+  .thanks-name {
+      font-size: 14px;
+      color: #f384a7;
+      white-space: normal; /* 允许换行 */
+      overflow-wrap: break-word; /* 允许换行 */
+  }
+  .thanks-note {
+      margin-top: 15px;
+      font-size: 14px;
+      color: #f384a7;
+      text-align: center;
+      font-style: italic;
+  }
+  
+  /* 头像占位符样式 */
+  .thanks-avatar-placeholder {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #f7a0b5, #f384a7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 24px;
+      font-weight: bold;
+      text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 2px 8px rgba(208, 178, 188, 0.4);
+  }

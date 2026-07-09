@@ -1,0 +1,10 @@
+.layout-row {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+}
+
+.layout-row > .layout-item {
+    max-width: 100%;
+}

@@ -1,0 +1,13 @@
+{
+  "name": "小波奇银行 (统一模板)",
+  
+  "entrypoint": "dispatch.html",
+  "styles": [
+    "_base.css",
+    "overview.css",
+    "user.css"
+  ],
+  "render_options": {
+    "viewport": { "width": 450, "height": 10 }
+  }
+}

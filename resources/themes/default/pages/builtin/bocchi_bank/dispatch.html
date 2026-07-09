@@ -1,0 +1,21 @@
+{% extends 'partials/_base.html' %}
+
+{% block title %}小波奇银行{% endblock %}
+
+{% block page_styles %}
+{% endblock %}
+
+{% block body_content %}
+    {% if data.page_type == 'overview' %}
+        {% set data = data.payload %}
+        {% include './overview.html' %}
+    {% elif data.page_type == 'user' %}
+        {% set data = data.payload %}
+        {% include './user.html' %}
+    {% else %}
+        <h1>渲染错误</h1>
+        <p>提供了无效的页面类型: {{ data.page_type }}</p>
+    {% endif %}
+{% endblock %}
+
+{% block footer %}{% endblock %}

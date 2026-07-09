@@ -1,0 +1,20 @@
+{
+  "prompts": [
+    {
+      "name": "手办生成",
+      "prompt": "create a 1/7 scale commercialized figure of the character in the illustration, in a realistic style and environment. Place the figure on a computer desk, using a circular transparent acrylic base without any text.On the computer screen, display the ZBrush modeling process of the figure. Next to the computer screen, place a BANDAI-style toy packaging box printed with the original artwork."
+    },
+    {
+      "name": "至上主义",
+      "prompt": "苏联至上主义与构成主义先锋艺术，马列维奇风格，整体画面完全几何解构，硬朗锐利几何三角形、方形、圆形、直线切割，大面积平涂色块，极致扁平化，无柔和渐变，无软阴影，高撞色对比，经典苏维埃复古配色：正红、纯黑、米白基底、暗金色，强烈对角线动态构图，粗重工业感线条，复古做旧粗糙印刷纸张颗粒纹理，平面抽象构成，秩序感与先锋冲击力，摒弃写实透视，几何拼接美学，复古前卫海报质感"
+    },
+    {
+      "name": "超现实主义",
+      "prompt": "这是一张超现实主义美学的动漫贴画，运用厚涂和晕染水粉技法，有着明显的颜料涂抹感、肌理感和颗粒感。从动态特写视角描绘画面，主色为银白色、绿色和黑色，加入对比色使色彩更加绚烂。通过图像拼贴和轮廓提取手法，营造混乱、张扬又荒诞的氛围，各元素矛盾却和谐统一，适度留白提升艺术氛围和层次感，仿佛在讲述一段特别的故事。"
+    },
+    {
+      "name": "框景手势",
+      "prompt": "比例9:16，主体与图片一致，眼神朦胧中带着危险与眷恋，无高光处理，散发着阳光开朗的气质，眼睛颜色和原图一致，画面重点突出其面部细节，采用中心构图，特写俯拍其面部和肩部。身穿与原图一致的衣服，营造出充满占有欲的氛围。手部动作是双手在镜头前比出创意性的多指张开姿势，个性化的“框景手势”，既活泼又有画面层次；肢体状态是以近距离自拍的视角呈现，身体姿态放松且有张力，通过手势的延伸感拉近与观者的距离；面部呈现俏皮的单侧眨眼（wink），搭配带点小微笑，增添了潮流感，整体表情风格元气又带点小酷的少年感，情绪传递活泼且有亲和力；采用自拍式的平视近景角度，画面聚焦于上半身，光线是明亮的自然光，脸不白，不要特别白，背景在草地，与原图一致。原比例。"
+    }
+  ]
+}

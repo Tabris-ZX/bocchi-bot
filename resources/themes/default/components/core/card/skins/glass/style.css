@@ -1,0 +1,55 @@
+.card-wrapper-glass {
+    position: relative;
+    background: rgba(253, 241, 245, 0.6); /* 半透明粉色背景 */
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 16px;
+    box-shadow: 0 8px 32px 0 rgba(246, 113, 134, 0.2);
+    overflow: hidden;
+    color: var(--color-text-dark);
+}
+
+.card-wrapper-glass::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 16px;
+    border: 1px solid transparent;
+    background: linear-gradient(to bottom right, rgba(255,255,255,0.3), rgba(255,255,255,0)) border-box;
+    -webkit-mask: 
+         linear-gradient(#fff 0 0) content-box, 
+         linear-gradient(#fff 0 0);
+    -webkit-mask-composite: destination-out; 
+    mask-composite: exclude; 
+}
+
+.card-glow {
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(246, 113, 134, 0.4) 0%, transparent 40%);
+    pointer-events: none;
+    z-index: -2;
+}
+
+
+.card-header-glass {
+    padding: 15px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.card-content-glass {
+    padding: 20px;
+}
+
+.card-footer-glass {
+    padding: 15px 20px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-top: 1px solid rgba(255, 255, 255, 0.18);
+}

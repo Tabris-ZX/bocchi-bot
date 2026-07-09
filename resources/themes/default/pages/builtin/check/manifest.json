@@ -1,0 +1,8 @@
+{
+  "name": "服务器自检报告",
+  
+  "entrypoint": "main.html",
+  "render_options": {
+    "viewport": { "width": 395, "height": 750 }
+  }
+}

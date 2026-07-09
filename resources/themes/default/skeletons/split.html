@@ -1,0 +1,19 @@
+{% extends "partials/_base.html" %}
+
+{# 分栏布局：左侧边栏 + 右侧主内容 #}
+
+{% block body_content %}
+<div class="flex bg-main font-main text-dark p-lg gap-lg">
+    
+    {# 侧边栏 (例如用户信息、头像) #}
+    <aside class="shrink-0 flex flex-col gap-md" style="width: 300px;">
+        {% block sidebar %}{% endblock %}
+    </aside>
+
+    {# 主内容区 #}
+    <main class="grow flex flex-col gap-md min-w-0">
+        {% block content %}{% endblock %}
+    </main>
+
+</div>
+{% endblock %}

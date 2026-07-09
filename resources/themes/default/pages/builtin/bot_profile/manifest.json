@@ -1,0 +1,8 @@
+{
+  "name": "Bot介绍页面",
+  
+  "entrypoint": "main.html",
+  "render_options": {
+    "viewport": { "width": 1077, "height": 10 }
+  }
+}

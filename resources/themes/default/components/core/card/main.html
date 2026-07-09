@@ -1,0 +1,18 @@
+{% from 'partials/_component_macros.jinja' import wrapper %}
+{% call wrapper(data, 'card-wrapper') %}
+    {% if data.header %}
+        <div class="card-header">
+            {{ render(data.header) }}
+        </div>
+    {% endif %}
+
+    <div class="card-content">
+        {{ render(data.content) }}
+    </div>
+
+    {% if data.footer %}
+        <div class="card-footer">
+            {{ render(data.footer) }}
+        </div>
+    {% endif %}
+{% endcall %}

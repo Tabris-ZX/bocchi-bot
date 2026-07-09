@@ -1,0 +1,7 @@
+{
+  "name": "帮助插件详情页面 (简约版)",
+  "entrypoint": "main.html",
+  "render_options": {
+    "viewport": { "width": 824, "height": 10 }
+  }
+}

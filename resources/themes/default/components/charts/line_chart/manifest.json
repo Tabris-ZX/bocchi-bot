@@ -1,0 +1,5 @@
+{
+  "name": "折线图 (ECharts)",
+  "entrypoint": "main.html",
+  "render_options": { "viewport": { "width": 1000, "height": 640 } }
+}

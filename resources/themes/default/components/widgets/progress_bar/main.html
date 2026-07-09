@@ -1,0 +1,22 @@
+{% if not frameless %}
+<style>
+    /* Inline style for dynamic progress position */
+    .progress-label-outer {
+        {% if data.progress > 0 %}
+        transform: translateX(calc(-100% / ({{ data.progress }} / 100)));
+        {% else %}
+        transform: translateX(-10000px);
+        {% endif %}
+    }
+</style>
+{% endif %}
+
+{% from 'partials/_component_macros.jinja' import wrapper %}
+{% call wrapper(data, 'progress-container') %}
+    <div class="progress-bar {{ data.color_scheme }} {% if data.animated %}animated{% endif %}" style="width: {{ data.progress }}%;">
+        <div class="progress-label-wrapper">
+            <span class="progress-label-inner">{{ data.label if data.label else '' }}</span>
+            <span class="progress-label-outer">{{ data.label if data.label else '' }}</span>
+        </div>
+    </div>
+{% endcall %}

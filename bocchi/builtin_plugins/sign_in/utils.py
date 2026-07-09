@@ -1,0 +1,294 @@
+from datetime import datetime
+import os
+from pathlib import Path
+import random
+
+import aiofiles
+import nonebot
+from nonebot.drivers import Driver
+from nonebot_plugin_uninfo import Uninfo
+import pytz
+
+from bocchi import ui
+from bocchi.configs.config import BotConfig, Config
+from bocchi.models.sign_log import SignLog
+from bocchi.models.sign_user import SignUser
+from bocchi.utils.manager.priority_manager import PriorityLifecycle
+from bocchi.utils.platform import PlatformUtils
+
+from .config import (
+    SIGN_TODAY_CARD_PATH,
+    level2attitude,
+    lik2level,
+    lik2relation,
+)
+
+assert (
+    len(level2attitude) == len(lik2level) == len(lik2relation)
+), "好感度态度、等级、关系长度不匹配！"
+
+AVA_URL = "http://q1.qlogo.cn/g?b=qq&nk={}&s=160"
+
+driver: Driver = nonebot.get_driver()
+
+base_config = Config.get("sign_in")
+
+
+MORNING_MESSAGE = [
+    "早上好，希望今天是美好的一天！",
+    "醒了吗，今天也要元气满满哦！",
+    "早上好呀，今天也要开心哦！",
+    "早安，愿你拥有美好的一天！",
+]
+
+LG_MESSAGE = [
+    "今天要早点休息哦~",
+    "可不要熬夜到太晚呀",
+    "请尽早休息吧！",
+    "不要熬夜啦！",
+]
+
+
+@PriorityLifecycle.on_startup(priority=5)
+async def init_image():
+    SIGN_TODAY_CARD_PATH.mkdir(exist_ok=True, parents=True)
+    clear_sign_data_pic()
+
+
+async def get_card(
+    user: SignUser,
+    session: Uninfo,
+    nickname: str,
+    add_impression: float,
+    gold: int | None,
+    gift: str,
+    is_double: bool = False,
+    is_card_view: bool = False,
+) -> Path:
+    """获取好感度卡片
+
+    参数:
+        user: SignUser
+        session: Uninfo
+        nickname: 用户昵称
+        impression: 新增的好感度
+        gold: 金币
+        gift: 礼物
+        is_double: 是否触发双倍.
+        is_card_view: 是否展示好感度卡片.
+
+    返回:
+        Path: 卡片路径
+    """
+    user_id = user.user_id
+    # 使用上海时区日期，避免服务器本地时区导致当天卡片命名与清理误判
+    date = datetime.now(pytz.timezone("Asia/Shanghai")).date()
+    _type = "view" if is_card_view else "sign"
+    file_name = f"{user_id}_{_type}_{date}.png"
+    card_file = SIGN_TODAY_CARD_PATH / file_name
+
+    if card_file.exists():
+        return card_file
+
+    if add_impression == -1:
+        view_name = f"{user_id}_view_{date}.png"
+        view_card_file = SIGN_TODAY_CARD_PATH / view_name
+        if view_card_file.exists():
+            return view_card_file
+        is_card_view = True
+
+    return await _generate_html_card(
+        user, session, nickname, add_impression, gold, gift, is_double, is_card_view
+    )
+
+
+def get_level_and_next_impression(impression: float) -> tuple[int, int | float, int]:
+    """获取当前好感等级与下一等级的差距
+
+    参数:
+        impression: 好感度
+
+    返回:
+        tuple[int, int, int]: 好感度等级，下一等级好感度要求，已达到的好感度要求
+    """
+
+    keys = list(lik2level.keys())
+    level_int, next_impression, previous_impression = (
+        int(lik2level[keys[-1]]),
+        keys[-2],
+        keys[-1],
+    )
+    for i in range(len(keys)):
+        if impression >= keys[i]:
+            level_int, next_impression, previous_impression = (
+                int(lik2level[keys[i]]),
+                keys[i - 1],
+                keys[i],
+            )
+            if i == 0:
+                next_impression = impression
+            break
+    return level_int, next_impression, previous_impression
+
+
+def clear_sign_data_pic():
+    """
+    清空当前签到图片数据
+    """
+    # 使用上海时区日期，确保与签到逻辑一致
+    date = datetime.now(pytz.timezone("Asia/Shanghai")).date()
+    for file in os.listdir(SIGN_TODAY_CARD_PATH):
+        if str(date) not in file:
+            os.remove(SIGN_TODAY_CARD_PATH / file)
+
+
+async def _generate_html_card(
+    user: SignUser,
+    session: Uninfo,
+    nickname: str,
+    add_impression: float,
+    gold: int | None,
+    gift: str,
+    is_double: bool = False,
+    is_card_view: bool = False,
+) -> Path:
+    """使用渲染服务生成签到卡片
+
+    参数:
+        user: SignUser
+        session: Uninfo
+        nickname: 用户昵称
+        add_impression: 新增的好感度
+        gold: 金币
+        gift: 礼物
+        is_double: 是否触发双倍.
+        is_card_view: 是否为卡片视图.
+
+    返回:
+        Path: 卡片路径
+    """
+    now = datetime.now()
+    date = now.date()
+    _type = "view" if is_card_view else "sign"
+    file_name = f"{user.user_id}_{_type}_{date}.png"
+    card_file = SIGN_TODAY_CARD_PATH / file_name
+
+    if card_file.exists():
+        return card_file
+
+    impression = float(user.impression)
+    user_console = await user.user_console
+    uid_str = (
+        f"{user_console.uid:08}"
+        if user_console and user_console.uid is not None
+        else "XXXXXXXX"
+    )
+    uid_formatted = f"{uid_str[:4]} {uid_str[4:]}"
+
+    level, next_impression, previous_impression = get_level_and_next_impression(
+        impression
+    )
+
+    attitude = level2attitude.get(str(level), "未知")
+    interpolation_val = max(0, next_impression - impression)
+    interpolation = f"{interpolation_val:.2f}"
+
+    denominator = next_impression - previous_impression
+    progress = (
+        100.0
+        if denominator == 0
+        else min(100.0, ((impression - previous_impression) / denominator) * 100)
+    )
+
+    hour = now.hour
+    if 6 < hour < 10:
+        bot_message = random.choice(MORNING_MESSAGE)
+    elif 0 <= hour < 6:
+        bot_message = random.choice(LG_MESSAGE)
+    else:
+        bot_message = f"{BotConfig.self_nickname}希望你开心！"
+
+    temperature = random.randint(1, 40)
+    weather_icon_name = f"{random.randint(0, 11)}.png"
+    tag_icon_name = f"{random.randint(0, 5)}.png"
+
+    user_info = {
+        "nickname": nickname,
+        "uid_str": uid_formatted,
+        "avatar_url": PlatformUtils.get_user_avatar_url(
+            user.user_id, PlatformUtils.get_platform(session), session.self_id
+        )
+        or "",
+        "sign_count": user.sign_count,
+    }
+
+    favorability_info = {
+        "current": impression,
+        "level": level,
+        "next_level_at": next_impression,
+        "previous_level_at": previous_impression,
+        "level_text": lik2relation.get(str(level), "未知"),
+        "heart2": range(level),
+        "heart1": range(8 - level),
+    }
+
+    reward_info = None
+    rank = None
+    total_gold = None
+    last_sign_date_str = None
+
+    if is_card_view:
+        value_list = (
+            await SignUser.annotate()
+            .order_by("-impression")
+            .values_list("user_id", flat=True)
+        )
+        rank = value_list.index(user.user_id) + 1 if user.user_id in value_list else 0
+        total_gold = user_console.gold if user_console else 0
+
+        last_log = (
+            await SignLog.filter(user_id=user.user_id).order_by("-create_time").first()
+        )
+        last_date = "从未"
+        if last_log:
+            last_date = str(
+                last_log.create_time.astimezone(pytz.timezone("Asia/Shanghai")).date()
+            )
+        last_sign_date_str = f"上次签到：{last_date}"
+
+    else:
+        reward_info = {
+            "impression_added": add_impression,
+            "gold_added": gold or 0,
+            "gift_received": gift,
+            "is_double": is_double,
+        }
+
+    page_info = {
+        "date_str": str(now.replace(microsecond=0)),
+        "weather_icon_name": weather_icon_name,
+        "temperature": temperature,
+        "tag_icon_name": tag_icon_name,
+    }
+
+    card_data = {
+        "is_card_view": is_card_view,
+        "user": user_info,
+        "favorability": favorability_info,
+        "reward": reward_info,
+        "page": page_info,
+        "bot_message": bot_message,
+        "attitude": attitude,
+        "interpolation": interpolation,
+        "progress": progress,
+        "rank": rank,
+        "total_gold": total_gold,
+        "last_sign_date_str": last_sign_date_str,
+    }
+
+    image_bytes = await ui.render_template("pages/builtin/sign", data=card_data)
+
+    async with aiofiles.open(card_file, "wb") as f:
+        await f.write(image_bytes)
+
+    return card_file

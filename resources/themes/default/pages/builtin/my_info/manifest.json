@@ -1,0 +1,11 @@
+{
+  "name": "通用用户信息卡片",
+  
+  "entrypoint": "main.html",
+  "render_options": {
+    "viewport": {
+      "width": 1754,
+        "height": 10
+    }
+  }
+}

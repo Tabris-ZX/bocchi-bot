@@ -1,0 +1,10 @@
+.*
+!.gitignore
+!.env.example
+
+data/
+log/
+ffmpeg/
+docker/
+
+__pycache__

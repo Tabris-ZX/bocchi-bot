@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ data.title or data.page_title or data.bot_name or data.bot_nickname or data.nickname | default('Bocchi Bot') }}{% endblock %}</title>
+
+    {# 1. 注入由 ThemeManager 渲染的主题核心CSS变量 #}
+    <style>
+        {% include 'theme.css.jinja' %}
+    </style>
+
+    {# 引入原子化工具类 #}
+    <link rel="stylesheet" href="{{ asset('css/base.css') }}">
+
+    {# 2. 为继承此模板的页面提供一个插入额外<style>块的位置 #}
+    {% block page_styles %}{% endblock %}
+
+    {# 3. 注入所有递归收集到的组件额外CSS #}
+    {% if collected_inline_css %}
+    <style>
+        @layer components {
+            {{ collected_inline_css | join('\n') | safe }}
+        }
+    </style>
+    {% endif %}
+
+    {# 4. 链接所有递归收集到的外部样式表 #}
+    {% for style_path in collected_asset_styles %}
+    <link rel="stylesheet" href="{{ asset(style_path) }}">
+    {% endfor %}
+
+    {# 5. 引入所有递归收集到的外部脚本 #}
+    {% for script_path in required_scripts %}
+        <script src="{{ asset(script_path) }}"></script>
+    {% endfor %}
+
+    {% block head_extra %}{% endblock %}
+</head>
+<body>
+
+{# 6. [核心] 注入由渲染服务传入的HTML内容片段 #}
+{% block body_content %}{{ body_content | safe }}{% endblock %}
+
+    {% block footer %}
+    {% endblock %}
+
+    {% block page_scripts %}{% endblock %}
+
+</body>
+</html>

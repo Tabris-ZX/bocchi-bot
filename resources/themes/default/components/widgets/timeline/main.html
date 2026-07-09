@@ -1,0 +1,16 @@
+{% import "macros/ui.jinja" as ui %}
+{% from 'partials/_component_macros.jinja' import wrapper %}
+{% call wrapper(data, 'timeline') %}
+    {% for item in data.items %}
+    <div class="timeline-item">
+        <div class="timeline-marker" style="border-color: {{ item.color | default('var(--color-primary, #f67186)') }};"></div>
+        <div class="timeline-content">
+            {% call ui.card(padding='sm') %}
+                <div class="text-xs text-muted mb-xs">{{ item.timestamp }}</div>
+                <h4 class="font-bold text-dark mb-xs">{{ item.title }}</h4>
+                <p class="text-sm">{{ item.content }}</p>
+            {% endcall %}
+        </div>
+    </div>
+    {% endfor %}
+{% endcall %}

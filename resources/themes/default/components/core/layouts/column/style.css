@@ -1,0 +1,11 @@
+.layout-column {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+.layout-column > .layout-item {
+    width: 100%;
+    box-sizing: border-box;
+}

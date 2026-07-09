@@ -1,0 +1,28 @@
+{% from 'partials/_component_macros.jinja' import wrapper %}
+{% set base_class = 'markdown-wrapper markdown-style-' + (data.style_name | default('github-light', true)) %}
+{% call wrapper(data, base_class) %}
+<article class="markdown-body">
+    {% macro render_elements(elements) %}
+        {% for element in elements %}
+            {% if element.type == 'component' %}
+                {{ render(element.component) }}
+            {% elif element.type == 'quote' %}
+                <blockquote>
+                    {{ render_elements(element.content) }}
+                </blockquote>
+            {% elif element.type == 'list' %}
+                {% if element.ordered %}<ol>{% else %}<ul>{% endif %}
+                    {{ render_elements(element.content) }}
+                {% if element.ordered %}</ol>{% else %}</ul>{% endif %}
+            {% elif element.type == 'list_item' %}
+                <li>
+                    {{ render_elements(element.content) }}
+                </li>
+            {% else %}
+                {{ element.to_markdown() | md | safe }}
+            {% endif %}
+        {% endfor %}
+    {% endmacro %}
+    {{ render_elements(data.elements) }}
+</article>
+{% endcall %}

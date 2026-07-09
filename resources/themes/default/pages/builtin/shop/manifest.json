@@ -1,0 +1,8 @@
+{
+  "name": "插件商店",
+  
+  "entrypoint": "main.html",
+  "render_options": {
+    "viewport": { "width": 850, "height": 10 }
+  }
+}

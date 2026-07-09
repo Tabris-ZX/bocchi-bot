@@ -1,0 +1,10 @@
+.layout-grid {
+    box-sizing: border-box;
+    display: grid;
+    width: 100%;
+}
+
+.layout-grid > .layout-item {
+    width: 100%;
+    box-sizing: border-box;
+}

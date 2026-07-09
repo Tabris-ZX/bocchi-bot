@@ -1,0 +1,71 @@
+<div class="page-wrapper">
+    {% if data.background_image %}
+    <div class="background-image"></div>
+    {% endif %}
+    <div id="{{ data.chart_id }}" class="chart-container"></div>
+</div>
+
+<style>
+    {% if data.background_image %}
+    .background-image {
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background-image: url("{{ asset('ui/background/' + data.background_image) }}");
+        background-repeat: no-repeat;
+        background-size: cover;
+        background-position: center;
+        filter: blur(10px) brightness(0.55) saturate(0.9);
+        z-index: 0;
+        transform: scale(1.08);
+        border-radius: 12px;
+    }
+    {% endif %}
+</style>
+
+<script type="text/javascript">
+    function deepMerge(target, source) {
+        for (const key in source) {
+            if (source.hasOwnProperty(key)) {
+                if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+                    if (!target[key]) {
+                        Object.assign(target, { [key]: {} });
+                    }
+                    deepMerge(target[key], source[key]);
+                } else if (Array.isArray(source[key]) && Array.isArray(target[key])) {
+                    target[key] = target[key].map((item, i) =>
+                        (source[key][i] && typeof source[key][i] === 'object')
+                            ? deepMerge(item, source[key][i])
+                            : source[key][i] || item
+                    );
+                } else {
+                    Object.assign(target, { [key]: source[key] });
+                }
+            }
+        }
+        return target;
+    }
+
+    var baseOption = {{ data.build_option() | dump_json | safe }};
+
+    var styleOption = {% include './style.json' %};
+
+    var option = deepMerge(baseOption, styleOption);
+    option.backgroundColor = 'transparent';
+
+    if (baseOption.yAxis && baseOption.yAxis.type === 'category' && baseOption.yAxis.data) {
+        (function() {
+            const chartDom = document.getElementById('{{ data.chart_id }}');
+            const barHeight = 40;
+            const topPadding = 80;
+            const bottomPadding = 40;
+            const numBars = baseOption.yAxis.data.length;
+            const totalHeight = (numBars * barHeight) + topPadding + bottomPadding;
+
+            chartDom.style.height = totalHeight + 'px';
+        })();
+    }
+
+    var chartDom = document.getElementById('{{ data.chart_id }}');
+    var myChart = echarts.init(chartDom);
+    myChart.setOption(option);
+</script>

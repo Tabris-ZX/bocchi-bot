@@ -1,0 +1,111 @@
+{% extends 'partials/_base.html' %}
+{% import "macros/icons.jinja" as icons %}
+{% import "macros/borders.jinja" as borders %}
+{% import "macros/svg_patterns.jinja" as patterns %}
+{% import "macros/visuals.jinja" as visuals %}
+
+{% block title %}{{ data.title }}{% endblock %}
+
+{% block page_styles %}
+{% endblock %}
+
+{% block body_content %}
+<div class="wrapper">
+    <div class="bg-blob blob-1"></div>
+    <div class="bg-blob blob-2"></div>
+
+    <div class="app-header">
+        <h1 class="app-title">{{ data.title }}</h1>
+    </div>
+
+    {% if data.metadata %}
+    <div class="meta-box">
+        {% block meta_box_image %}{% endblock %}
+        {% for item in data.metadata if item.value %}
+        <div class="meta-item">
+            <div class="meta-icon">
+                {% if '作者' in item.label %}
+                {{ icons.user(size=20, color='var(--color-primary)') }}
+                {% elif '版本' in item.label %}
+                {{ icons.tag(size=20, color='var(--color-primary)') }}
+                {% elif '次' in item.label %}
+                {{ icons.dashboard(size=20, color='var(--color-primary)') }}
+                {% else %}
+                {{ icons.info(size=20, color='var(--color-primary)') }}
+                {% endif %}
+            </div>
+            <div class="meta-content">
+                <div class="meta-label">{{ item.label }}</div>
+                <div class="meta-value">{{ item.value }}</div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="sections-container">
+        {% for section in data.sections %}
+        <div class="help-card">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <div class="title-icon">
+                        {% if '简介' in section.title %}
+                            {{ icons.file_text(size=22) }}
+                        {% elif '管理员' in section.title %}
+                            {{ icons.shield_check(size=22) }}
+                        {% elif '超级用户' in section.title %}
+                            {{ icons.wand(size=22) }}
+                        {% else %}
+                            {{ icons.info(size=22) }}
+                        {% endif %}
+                    </div>
+                    <span class="title-text">{{ section.title }}</span>
+                    <span class="section-subtitle">{% if '简介' in section.title %}{% elif '管理员' in section.title %}ADMIN COMMANDS{% elif '超级用户' in section.title %}ROOT ACCESS{% endif %}</span>
+                </h2>
+            </div>
+
+            <div class="section-content">
+                {% for line in section.content %}
+                <div class="markdown-content">{{ line | md | safe }}</div>
+                {% endfor %}
+            </div>
+
+            {% if loop.last %}
+            {% set random_footer = random_asset('ui/img-random') %}
+            {% if random_footer %}
+            <img src="{{ random_footer }}" class="info-box-deco" alt="decoration">
+            {% endif %}
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="divider"></div>
+    {% include 'partials/_footer.html' %}
+</div>
+{% endblock %}
+
+{% block footer %}
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+    window.addEventListener('load', function () {
+        const boxes = document.querySelectorAll('.info-box');
+
+        boxes.forEach(function (box) {
+            const decoImg = box.querySelector('.info-box-deco');
+            const contentDiv = box.querySelector('.section-content');
+
+            if (decoImg && contentDiv) {
+                const contentHeight = contentDiv.offsetHeight;
+
+                const limit = contentHeight * 0.7;
+
+                decoImg.style.maxHeight = limit + 'px';
+                decoImg.style.width = 'auto';
+            }
+        });
+    });
+</script>
+{% endblock %}

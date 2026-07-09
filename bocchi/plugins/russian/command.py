@@ -1,0 +1,116 @@
+from nonebot_plugin_alconna import Alconna, Args, on_alconna
+from nonebot_plugin_alconna import At as alcAt
+
+from bocchi.utils.rules import ensure_group
+
+_russian_matcher = on_alconna(
+    Alconna(
+        "俄罗斯轮盘",
+        Args["num?", str]["money?", int]["at_user?", alcAt],
+    ),
+    aliases={"装弹", "俄罗斯转盘"},
+    rule=ensure_group,
+    priority=5,
+    block=True,
+)
+
+_accept_matcher = on_alconna(
+    Alconna("接受对决"),
+    aliases={"接受决斗", "接受挑战","接受"},
+    rule=ensure_group,
+    priority=5,
+    block=True,
+)
+
+_refuse_matcher = on_alconna(
+    Alconna("拒绝对决"),
+    aliases={"拒绝决斗", "拒绝挑战","拒绝"},
+    rule=ensure_group,
+    priority=5,
+    block=True,
+)
+
+# 修改点1：将原来的_shoot_matcher拆分成两个独立的匹配器
+_self_shoot_matcher = on_alconna(  # 修改点：变量名前加self_表示打自己
+    Alconna("开我"),
+    aliases={"打我"},
+    rule=ensure_group,
+    priority=5,
+    block=True,
+)
+
+_opponent_shoot_matcher = on_alconna(  # 修改点：变量名前加opponent_表示打对方
+    Alconna("开他"),
+    aliases={"打他"},
+    rule=ensure_group,
+    priority=5,
+    block=True,
+)
+
+_settlement_matcher = on_alconna(
+    Alconna("结算"),
+    rule=ensure_group,
+    priority=5,
+    block=True,
+)
+
+_record_matcher = on_alconna(
+    Alconna("我的战绩"),
+    rule=ensure_group,
+    priority=5,
+    block=True,
+)
+
+_rank_matcher = on_alconna(
+    Alconna(
+        "russian-rank",
+        Args["rank_type", ["win", "lose", "a", "b", "max_win", "max_lose"]][
+            "num?", int, 10
+        ],
+    ),
+    rule=ensure_group,
+    priority=5,
+    block=True,
+)
+
+_rank_matcher.shortcut(
+    r"轮盘胜场排行(?P<num>\d*)",
+    command="russian-rank",
+    arguments=["win", "{num}"],
+    prefix=True,
+)
+
+_rank_matcher.shortcut(
+    r"轮盘败场排行(?P<num>\d*)",
+    command="russian-rank",
+    arguments=["lose", "{num}"],
+    prefix=True,
+)
+
+_rank_matcher.shortcut(
+    r"轮盘欧洲人排行(?P<num>\d*)",
+    command="russian-rank",
+    arguments=["a", "{num}"],
+    prefix=True,
+)
+
+_rank_matcher.shortcut(
+    r"轮盘慈善家排行(?P<num>\d*)",
+    command="russian-rank",
+    arguments=["b", "{num}"],
+    prefix=True,
+)
+
+_rank_matcher.shortcut(
+    r"轮盘最高连胜排行(?P<num>\d*)",
+    command="russian-rank",
+    arguments=["max_win", "{num}"],
+    prefix=True,
+)
+
+_rank_matcher.shortcut(
+    r"轮盘最高连败排行(?P<num>\d*)",
+    command="russian-rank",
+    arguments=["max_lose", "{num}"],
+    prefix=True,
+)

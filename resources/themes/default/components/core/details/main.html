@@ -1,0 +1,12 @@
+{% from 'partials/_component_macros.jinja' import wrapper %}
+{% call wrapper(data, 'details-wrapper') %}
+    {% if data.title %}
+        <h2 class="details-title">{{ data.title }}</h2>
+    {% endif %}
+    <div class="details-list">
+       {% for item in data['items'] %}
+            <div class="details-label">{{ item.label }}:</div>
+            <div class="details-value">{{ item.value }}</div>
+        {% endfor %}
+    </div>
+{% endcall %}

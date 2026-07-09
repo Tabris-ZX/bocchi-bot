@@ -1,0 +1,221 @@
+import asyncio
+from pathlib import Path
+import subprocess
+from subprocess import CalledProcessError
+from typing import ClassVar
+
+from bocchi.configs.config import Config
+from bocchi.services.log import logger
+
+LOG_COMMAND = "VirtualEnvPackageManager"
+
+Config.add_plugin_config(
+    "virtualenv",
+    "python_path",
+    None,
+    help="虚拟环境python路径，为空时使用系统环境的uv",
+)
+
+
+class VirtualEnvPackageManager:
+    DEFAULT_COMMAND: ClassVar[list[str]] = ["uv", "pip"]
+
+    @classmethod
+    def __get_command(cls) -> list[str]:
+        if path := Config.get_config("virtualenv", "python_path"):
+            return [path, "-m", "pip"]
+        return cls.DEFAULT_COMMAND.copy()
+
+    @classmethod
+    async def install(cls, package: list[str] | str):
+        """安装依赖包
+
+        参数:
+            package: 安装依赖包名称或列表
+        """
+        if isinstance(package, str):
+            package = [package]
+        try:
+            command = cls.__get_command()
+            command.append("install")
+            command.extend(package)
+            logger.info(f"执行虚拟环境安装包指令: {command}", LOG_COMMAND)
+            result = await asyncio.to_thread(
+                subprocess.run,
+                command,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            logger.debug(
+                f"安装虚拟环境包指令执行完成: {result.stdout}",
+                LOG_COMMAND,
+            )
+            return result.stdout
+        except (CalledProcessError, FileNotFoundError) as e:
+            stderr = e.stderr if isinstance(e, CalledProcessError) else str(e)
+            logger.error(f"安装虚拟环境包指令执行失败: {stderr}.", LOG_COMMAND)
+            return stderr
+
+    @classmethod
+    async def uninstall(cls, package: list[str] | str):
+        """卸载依赖包
+
+        参数:
+            package: 卸载依赖包名称或列表
+        """
+        if isinstance(package, str):
+            package = [package]
+        try:
+            command = cls.__get_command()
+            command.append("uninstall")
+            command.extend(package)
+            logger.info(f"执行虚拟环境卸载包指令: {command}", LOG_COMMAND)
+            result = await asyncio.to_thread(
+                subprocess.run,
+                command,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            logger.debug(
+                f"卸载虚拟环境包指令执行完成: {result.stdout}",
+                LOG_COMMAND,
+            )
+            return result.stdout
+        except (CalledProcessError, FileNotFoundError) as e:
+            stderr = e.stderr if isinstance(e, CalledProcessError) else str(e)
+            logger.error(f"卸载虚拟环境包指令执行失败: {stderr}.", LOG_COMMAND)
+            return stderr
+
+    @classmethod
+    async def update(cls, package: list[str] | str):
+        """更新依赖包
+
+        参数:
+            package: 更新依赖包名称或列表
+        """
+        if isinstance(package, str):
+            package = [package]
+        try:
+            command = cls.__get_command()
+            command.append("install")
+            command.append("--upgrade")
+            command.extend(package)
+            logger.info(f"执行虚拟环境更新包指令: {command}", LOG_COMMAND)
+            result = await asyncio.to_thread(
+                subprocess.run,
+                command,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            logger.debug(f"更新虚拟环境包指令执行完成: {result.stdout}", LOG_COMMAND)
+            return result.stdout
+        except (CalledProcessError, FileNotFoundError) as e:
+            stderr = e.stderr if isinstance(e, CalledProcessError) else str(e)
+            logger.error(f"更新虚拟环境包指令执行失败: {stderr}.", LOG_COMMAND)
+            return stderr
+
+    @staticmethod
+    def _clean_requirements_file(file_path: Path) -> None:
+        """清理 requirements 文件中的非ASCII注释
+
+        防止 Windows 上 pip 使用 GBK 编码读取 UTF-8 文件时出错
+
+        参数:
+            file_path: requirements 文件路径
+        """
+        try:
+            content = file_path.read_text(encoding="utf-8")
+            lines = content.splitlines()
+            cleaned_lines = []
+            for line in lines:
+                stripped = line.strip()
+                # 跳过空行
+                if not stripped:
+                    continue
+                # 如果是注释行且包含非ASCII字符，跳过
+                if stripped.startswith("#"):
+                    try:
+                        stripped.encode("ascii")
+                    except UnicodeEncodeError:
+                        continue
+                cleaned_lines.append(line)
+            # 写回文件
+            file_path.write_text(
+                "\n".join(cleaned_lines) + "\n" if cleaned_lines else "",
+                encoding="utf-8",
+            )
+        except Exception:
+            # 如果清理失败，忽略错误继续安装
+            pass
+
+    @classmethod
+    async def install_requirement(cls, requirement_file: Path):
+        """安装依赖文件
+
+        参数:
+            requirement_file: requirement文件路径
+
+        异常:
+            FileNotFoundError: 文件不存在
+        """
+        if not requirement_file.exists():
+            raise FileNotFoundError(f"依赖文件 {requirement_file} 不存在", LOG_COMMAND)
+        # 清理 requirements 文件中的非ASCII注释，防止 Windows GBK 编码问题
+        cls._clean_requirements_file(requirement_file)
+        try:
+            command = cls.__get_command()
+            command.append("install")
+            command.append("-r")
+            command.append(str(requirement_file.absolute()))
+            logger.info(f"执行虚拟环境安装依赖文件指令: {command}", LOG_COMMAND)
+            result = await asyncio.to_thread(
+                subprocess.run,
+                command,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            logger.debug(
+                f"安装虚拟环境依赖文件指令执行完成: {result.stdout}",
+                LOG_COMMAND,
+            )
+            return result.stdout
+        except (CalledProcessError, FileNotFoundError) as e:
+            stderr = e.stderr if isinstance(e, CalledProcessError) else str(e)
+            logger.error(
+                f"安装虚拟环境依赖文件指令执行失败: {stderr}.",
+                LOG_COMMAND,
+            )
+            return stderr
+
+    @classmethod
+    async def add_requirement(cls, requirement_file: Path):
+        """兼容旧调用：安装 requirements 文件到当前虚拟环境。"""
+        return await cls.install_requirement(requirement_file)
+
+    @classmethod
+    async def list(cls) -> str:
+        """列出已安装的依赖包"""
+        try:
+            command = cls.__get_command()
+            command.append("list")
+            logger.info(f"执行虚拟环境列出包指令: {command}", LOG_COMMAND)
+            result = await asyncio.to_thread(
+                subprocess.run,
+                command,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            logger.debug(
+                f"列出虚拟环境包指令执行完成: {result.stdout}",
+                LOG_COMMAND,
+            )
+            return result.stdout
+        except (CalledProcessError, FileNotFoundError) as e:
+            stderr = e.stderr if isinstance(e, CalledProcessError) else str(e)
+            logger.error(f"列出虚拟环境包指令执行失败: {stderr}.", LOG_COMMAND)
+        return ""

@@ -1,0 +1,11 @@
+{
+  "name": "通用插件帮助菜单",
+  "entrypoint": "main.html",
+  "styles": ["style.css"],
+  "render_options": {
+    "viewport": {
+      "width": 1010,
+      "height": 10
+    }
+  }
+}

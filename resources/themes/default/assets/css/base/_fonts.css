@@ -1,0 +1,74 @@
+@font-face {
+  font-family: "AlibabaHealthFont2";
+  src: url("{{ asset('fonts/AlibabaHealthFont2.0CN-85B.ttf') }}");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "fzrzFont";
+  src: url("{{ asset('fonts/fzrzExtraBold.ttf') }}");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "hywhFont";
+  src: url("{{ asset('fonts/HYWenHei-85W.ttf') }}");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "syhtFont";
+  src: url("{{ asset('fonts/syht.otf') }}");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "systFont";
+  src: url("{{ asset('fonts/syst.otf') }}");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "freeFont";
+  src: url("{{ asset('fonts/Freestyle Script.ttf') }}");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "fandolFont";
+  src: url("{{ asset('fonts/FANDOLSONG-BOLD.OTF') }}");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: aliFont;
+  src: url("{{ asset('fonts/ALIBABAPUHUITI-2-65-MEDIUM.TTF') }}");
+}
+
+/* 签到卡片字体 */
+@font-face {
+    font-family: cr105Font;
+    src: url("{{ asset('fonts/ChillReunion_105S.woff2') }}");
+}
+
+@font-face {
+    font-family: cr65sFont;
+    src: url("{{ asset('fonts/ChillReunion_65S.woff2') }}");
+}
+
+@font-face {
+    font-family: shFont;
+    src: url("{{ asset('fonts/SourceHanSansSC-Bold.woff2') }}");
+}
+
+@font-face {
+    font-family: rxxxtFont;
+    src: url("{{ asset('fonts/rxxxkat.woff2') }}");
+}
+
+@font-face {
+    font-family: kcytFont;
+    src: url("{{ asset('fonts/jcyt.woff2') }}");
+}

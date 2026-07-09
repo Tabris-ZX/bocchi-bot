@@ -1,0 +1,45 @@
+{% extends 'partials/_base.html' %}
+
+{% block title %}{{ data.page_title }}{% endblock %}
+
+{% block page_styles %}
+    <style>
+        {# Import the page-specific styles, which in turn can import component styles #}
+        {% include './style.css' %}
+    </style>
+{% endblock %}
+
+{% block body_content %}
+    <div class="container">
+        <div class="header">
+            <h1>{{ data.bot_nickname }}</h1>
+            <p>{{ data.page_title }}</p>
+        </div>
+        <div class="content">
+
+
+            {% for category in data.categories if data and data.categories %}
+
+            <div class="category-header">
+                <svg viewBox="0 0 24 24">
+                    <path d="{{ category.icon_svg_path }}"></path>
+                </svg>
+                <span>{{ category.title }}</span>
+            </div>
+
+            {% set items_list = category['items'] %}
+            {% for item in items_list %}
+            <div class="item-card">
+                <h4>{{ item.name }}</h4>
+                <div class="markdown-content">{{ item.description | md | safe }}</div>
+                <div class="usage markdown-content">{{ item.usage | md | safe }}</div>
+            </div>
+            {% endfor %}
+
+            {% endfor %}
+
+        </div>
+        <div style="height: 1px; background: #fce4ec; margin: 0 20px 15px 20px;"></div>
+    </div>
+{% endblock %}
+{% block footer %}{% include 'partials/_footer.html' %}{% endblock %}

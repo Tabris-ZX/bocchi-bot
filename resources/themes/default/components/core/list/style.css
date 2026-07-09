@@ -1,0 +1,17 @@
+.list-container {
+    padding-left: 10px;
+    margin: 1em 0;
+    list-style-position: outside;
+}
+
+.list-container li {
+    padding-left: 0.8em;
+    margin-bottom: 0.75em;
+    line-height: 1.6;
+}
+
+.list-container li::marker {
+    color: var(--color-primary);
+    font-weight: bold;
+    font-size: 1.1em;
+}

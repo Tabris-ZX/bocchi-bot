@@ -1,0 +1,28 @@
+.details-wrapper {
+    padding: 10px 0;
+}
+.details-title {
+    font-size: 1.2em;
+    font-weight: bold;
+    color: var(--color-text-dark);
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--color-primary);
+}
+.details-list {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 8px 15px;
+    font-size: 15px;
+    line-height: 1.6;
+}
+.details-label {
+    font-weight: bold;
+    color: var(--color-text-muted);
+    text-align: right;
+    white-space: nowrap;
+}
+.details-value {
+    color: var(--color-text-dark);
+    word-break: break-all;
+}

@@ -1,0 +1,88 @@
+{% extends 'partials/_base.html' %}
+
+{% block title %}签到卡片{% endblock %}
+
+{% block page_styles %}
+<style>
+    {% include './style.css' %}
+</style>
+{% endblock %}
+
+{% block body_content %}
+<div class="wrapper">
+    <div class="top-head">
+        <div style="display: flex;">
+            <div class="avatar">
+                <img class="avatar-img" src="{{data.user.avatar_url}}" alt="">
+            </div>
+            <div style="position: relative;">
+                <p class="nickname" style="font-size: {{ data.user.font_size }}px;">{{data.user.nickname}}</p>
+                <p class="uid">UID:{{data.user.uid_str}}</p>
+            </div>
+        </div>
+    </div>
+    <div class="sign-content">
+        <div class="sign-bottom"></div>
+        <div class="sign-top">
+            <img class="rl-img" src="{{ asset('./img/rl.png') }}" alt="">
+            <!-- <img class="zx-img" src="{{ asset('./img/1.png') }}" alt=""> -->
+            <p class="text-day">累计签到{{data.user.sign_count}}天</p>
+            <p class="text-zx">{{data.bot_message}}</p>
+        </div>
+    </div>
+    <div class="sign-data">
+        <img class="qian" src="{{ asset('./img/tag/' + data.page.tag_icon_name) }}" alt="">
+
+        {% if not data.is_card_view and data.reward %}
+        <p class="today-text">今日签到</p>
+        <div class="abs-text" style="top: 42px;">
+            <p class="gift">好感度 +{{ "%.2f"|format(data.reward.impression_added) }}{% if data.reward.is_double %} (×2){%
+                endif %}</p>
+        </div>
+        <div class="abs-text" style="top: 83px;">
+            <p class="gift">金币 +{{data.reward.gold_added}}</p>
+        </div>
+        <div class="abs-text" style="top: 123px;">
+            <p class="gift">{{data.reward.gift_received}}</p>
+        </div>
+        {% else %}
+        <p class="today-text">我的信息</p>
+        <div class="abs-text" style="top: 42px;">
+            <p class="gift">好感度排名第 {{ data.rank }} 位</p>
+        </div>
+        <div class="abs-text" style="top: 83px;">
+            <p class="gift">总金币：{{ data.total_gold }}</p>
+        </div>
+        <div class="abs-text" style="top: 123px;">
+            <p class="gift"></p>
+        </div>
+        {% endif %}
+    </div>
+    <div class="line"></div>
+    <div class="bottom-foot">
+        <p class="cur-text">当前好感度: {{ "%.2f"|format(data.favorability.current) }}</p>
+        <div class="heart-list">
+            {% for i in data.favorability.heart2 %}
+            <img class="heart-img" src="{{ asset('./img/h2.png') }}" alt="" />
+            {% endfor %}
+            {% for i in data.favorability.heart1 %}
+            <img class="heart-img" src="{{ asset('./img/h1.png') }}" alt="" />
+            {% endfor %}
+        </div>
+        <div class="bot-text">
+            <p style="position: absolute; top: 9px">好感度等级: {{data.favorability.level_text}}</p>
+            <p style="position: absolute; top: 58px">{{data.attitude}}</p>
+            <p style="position: absolute; top: 111px">距离升级还差{{data.interpolation}}好感度</p>
+        </div>
+        <div class="progress-border">
+            <div class="progress-bar" style="width: {{data.progress}}%;"></div>
+        </div>
+        <img class="weather-img" src="{{ asset('./img/weather/' + data.page.weather_icon_name) }}" alt="">
+        <p class="wd">{{data.page.temperature}}℃</p>
+        <!-- <img class="mbl-img" src="{{ asset('./img/2.png') }}" alt=""> -->
+        <div class="date">{{data.page.date_str}}</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block footer %}{% endblock %}

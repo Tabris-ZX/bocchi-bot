@@ -1,0 +1,11 @@
+{% from 'partials/_component_macros.jinja' import wrapper %}
+{% call wrapper(data, 'divider-wrapper') %}
+    <hr style="
+        margin: {{ data.margin }};
+        height: {{ data.thickness }};
+        background-color: {{ data.color }};
+        border-style: {{ data.style }};
+        border-width: 0;
+        border: none;
+    ">
+{% endcall %}

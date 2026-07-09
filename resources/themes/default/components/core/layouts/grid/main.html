@@ -1,0 +1,19 @@
+{% if not frameless %}
+{% extends 'partials/_base.html' %}
+{% endif %}
+
+{% block head_extra %}
+{% endblock %}
+
+{% block body_content %}
+    {% set dynamic_style = "padding: " ~ (data.options.padding | default('25px')) ~ "; gap: " ~ (data.options.gap | default('20px')) ~ "; align-items: " ~ (data.options.align_items | default('stretch')) ~ "; grid-template-columns: repeat(" ~ (data.options.columns | default(2)) ~ ", 1fr);" %}
+    <div class="layout-grid {{ data.extra_classes | join(' ') if data.extra_classes }}" style="{{ dynamic_style }} {{ data.inline_style_str }}">
+        {% for item in data.children %}
+            <div class="layout-item">
+                {{ render(item.component) }}
+            </div>
+        {% endfor %}
+    </div>
+{% endblock %}
+
+{% block footer %}{% endblock %}

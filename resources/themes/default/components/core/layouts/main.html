@@ -1,0 +1,15 @@
+{% if not frameless %}
+{% extends 'components/core/layouts/_base.html' %}
+{% endif %}
+
+{% block layout_content %}
+    {% if data.options.layout_type == 'column' %}
+        {% include 'components/core/layouts/column/main.html' %}
+    {% elif data.options.layout_type == 'row' %}
+        {% include 'components/core/layouts/row/main.html' %}
+    {% elif data.options.layout_type == 'grid' %}
+        {% include 'components/core/layouts/grid/main.html' %}
+    {% else %}
+        <p style="color: red; font-family: sans-serif;">Error: Invalid layout_type '{{ data.options.layout_type }}'</p>
+    {% endif %}
+{% endblock %}

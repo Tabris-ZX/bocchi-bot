@@ -1,0 +1,20 @@
+<div class="card-wrapper-glass {{ data.extra_classes | join(' ') if data.extra_classes }}" style="{{ data.inline_style_str }}">
+    <div class="card-glow"></div>
+    <div class="card-noise"></div>
+
+    {% if data.header %}
+        <div class="card-header-glass">
+            {{ render(data.header) }}
+        </div>
+    {% endif %}
+
+    <div class="card-content-glass">
+        {{ render(data.content) }}
+    </div>
+
+    {% if data.footer %}
+        <div class="card-footer-glass">
+            {{ render(data.footer) }}
+        </div>
+    {% endif %}
+</div>

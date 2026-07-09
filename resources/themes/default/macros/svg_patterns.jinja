@@ -1,0 +1,773 @@
+{#
+SVG 纹理与分隔符宏集合
+使用方法: {% import "macros/svg_patterns.jinja" as patterns %}
+#}
+
+{# --- 1. 背景纹理 (Background Patterns) --- #}
+
+{# 点阵纹理 #}
+{% macro bg_dots(color='#000000', opacity=0.1, size=20, radius=1.5) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"
+    style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <defs>
+        <pattern id="pattern-dots-{{ size }}" x="0" y="0" width="{{ size }}" height="{{ size }}"
+            patternUnits="userSpaceOnUse">
+            <circle cx="{{ size/2 }}" cy="{{ size/2 }}" r="{{ radius }}" fill="{{ color }}"
+                fill-opacity="{{ opacity }}" />
+        </pattern>
+    </defs>
+    <rect x="0" y="0" width="100%" height="100%" fill="url(#pattern-dots-{{ size }})" />
+</svg>
+{% endmacro %}
+
+
+{# 31. 洒红节/彩屑 (Sprinkles) #}
+{% macro bg_sprinkles(color='#ff9f43', opacity=0.1, size=50) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <defs>
+        <pattern id="pattern-sprinkles-{{ size }}" width="{{ size }}" height="{{ size }}" patternUnits="userSpaceOnUse">
+            <rect x="{{ size*0.1 }}" y="{{ size*0.1 }}" width="6" height="2" rx="1" fill="{{ color }}" fill-opacity="{{ opacity }}" transform="rotate(45 {{ size*0.1 }} {{ size*0.1 }})"/>
+            <rect x="{{ size*0.6 }}" y="{{ size*0.2 }}" width="6" height="2" rx="1" fill="{{ color }}" fill-opacity="{{ opacity }}" transform="rotate(-30 {{ size*0.6 }} {{ size*0.2 }})"/>
+            <rect x="{{ size*0.3 }}" y="{{ size*0.7 }}" width="6" height="2" rx="1" fill="{{ color }}" fill-opacity="{{ opacity }}" transform="rotate(90 {{ size*0.3 }} {{ size*0.7 }})"/>
+            <rect x="{{ size*0.8 }}" y="{{ size*0.8 }}" width="6" height="2" rx="1" fill="{{ color }}" fill-opacity="{{ opacity }}" transform="rotate(10 {{ size*0.8 }} {{ size*0.8 }})"/>
+        </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pattern-sprinkles-{{ size }})"/>
+</svg>
+{% endmacro %}
+
+{# 32. 手绘圆圈 (Hand-drawn Circles) #}
+{% macro bg_doodle_circles(color='#5f27cd', opacity=0.05, size=40) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <defs>
+        <pattern id="pattern-doodle-circ-{{ size }}" width="{{ size }}" height="{{ size }}" patternUnits="userSpaceOnUse">
+            <circle cx="{{ size/2 }}" cy="{{ size/2 }}" r="{{ size/3 }}" fill="none" stroke="{{ color }}" stroke-width="1" stroke-opacity="{{ opacity }}" stroke-dasharray="3,2"/>
+        </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pattern-doodle-circ-{{ size }})"/>
+</svg>
+{% endmacro %}
+
+{# 33. 樱桃 (Cherries) #}
+{% macro bg_cherries(color='#e55039', opacity=0.1, size=60) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <defs>
+        <pattern id="pattern-cherries-{{ size }}" width="{{ size }}" height="{{ size }}" patternUnits="userSpaceOnUse">
+            <!-- 果实 -->
+            <circle cx="{{ size*0.35 }}" cy="{{ size*0.65 }}" r="4" fill="{{ color }}" fill-opacity="{{ opacity }}"/>
+            <circle cx="{{ size*0.55 }}" cy="{{ size*0.65 }}" r="4" fill="{{ color }}" fill-opacity="{{ opacity }}"/>
+            <!-- 茎 -->
+            <path d="M{{ size*0.35 }} {{ size*0.65 }} Q {{ size*0.45 }} {{ size*0.4 }} {{ size*0.5 }} {{ size*0.3 }} M{{ size*0.55 }} {{ size*0.65 }} Q {{ size*0.5 }} {{ size*0.4 }} {{ size*0.5 }} {{ size*0.3 }}" stroke="{{ color }}" stroke-width="1" stroke-opacity="{{ opacity }}" fill="none"/>
+            <!-- 叶子 -->
+            <path d="M{{ size*0.5 }} {{ size*0.3 }} Q {{ size*0.65 }} {{ size*0.2 }} {{ size*0.7 }} {{ size*0.3 }}" stroke="{{ color }}" stroke-width="1" stroke-opacity="{{ opacity }}" fill="none"/>
+        </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pattern-cherries-{{ size }})"/>
+</svg>
+{% endmacro %}
+
+{# 34. 云朵 (Clouds Pattern) #}
+{% macro bg_clouds(color='#74b9ff', opacity=0.1, size=80) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <defs>
+        <pattern id="pattern-clouds-{{ size }}" width="{{ size }}" height="{{ size/2 }}" patternUnits="userSpaceOnUse">
+            <path d="M{{ size*0.2 }} {{ size*0.4 }} Q{{ size*0.3 }} {{ size*0.2 }} {{ size*0.4 }} {{ size*0.4 }} T{{ size*0.6 }} {{ size*0.4 }} V{{ size*0.5 }} H{{ size*0.2 }} Z" fill="{{ color }}" fill-opacity="{{ opacity }}"/>
+        </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pattern-clouds-{{ size }})"/>
+</svg>
+{% endmacro %}
+
+{# 35. 蝴蝶结 (Bows Pattern) #}
+{% macro bg_bows(color='#ff9ff3', opacity=0.1, size=50) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <defs>
+        <pattern id="pattern-bows-{{ size }}" width="{{ size }}" height="{{ size }}" patternUnits="userSpaceOnUse">
+            <path d="M{{ size*0.3 }} {{ size*0.4 }} L{{ size*0.5 }} {{ size*0.6 }} L{{ size*0.5 }} {{ size*0.4 }} L{{ size*0.3 }} {{ size*0.6 }} Z" fill="{{ color }}" fill-opacity="{{ opacity }}"/>
+            <path d="M{{ size*0.7 }} {{ size*0.4 }} L{{ size*0.5 }} {{ size*0.6 }} L{{ size*0.5 }} {{ size*0.4 }} L{{ size*0.7 }} {{ size*0.6 }} Z" fill="{{ color }}" fill-opacity="{{ opacity }}"/>
+            <circle cx="{{ size*0.5 }}" cy="{{ size*0.5 }}" r="2" fill="{{ color }}" fill-opacity="{{ opacity }}"/>
+        </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pattern-bows-{{ size }})"/>
+</svg>
+{% endmacro %}
+
+{# 36. 菱形网格 (Argyle Soft) #}
+{% macro bg_argyle_soft(color='#00d2d3', opacity=0.05, size=40) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <defs>
+        <pattern id="pattern-argyle-soft-{{ size }}" width="{{ size }}" height="{{ size }}" patternUnits="userSpaceOnUse">
+            <rect x="{{ size*0.25 }}" y="{{ size*0.25 }}" width="{{ size*0.5 }}" height="{{ size*0.5 }}" transform="rotate(45 {{ size*0.5 }} {{ size*0.5 }})" fill="none" stroke="{{ color }}" stroke-width="1" stroke-opacity="{{ opacity }}"/>
+        </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pattern-argyle-soft-{{ size }})"/>
+</svg>
+{% endmacro %}
+
+{# 37. 猫爪印 (Paw Prints Random) #}
+{% macro bg_paws_random(color='#576574', opacity=0.05, size=80) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <defs>
+        <pattern id="pattern-paws-rand-{{ size }}" width="{{ size }}" height="{{ size }}" patternUnits="userSpaceOnUse">
+            <g transform="translate({{ size*0.2 }}, {{ size*0.3 }}) rotate(20) scale(0.5)">
+                <ellipse cx="10" cy="12" rx="3" ry="2.4" fill="{{ color }}" fill-opacity="{{ opacity }}" />
+                <circle cx="7" cy="8" r="1" fill="{{ color }}" fill-opacity="{{ opacity }}" />
+                <circle cx="10" cy="7" r="1" fill="{{ color }}" fill-opacity="{{ opacity }}" />
+                <circle cx="13" cy="8" r="1" fill="{{ color }}" fill-opacity="{{ opacity }}" />
+            </g>
+            <g transform="translate({{ size*0.7 }}, {{ size*0.7 }}) rotate(-10) scale(0.5)">
+                 <ellipse cx="10" cy="12" rx="3" ry="2.4" fill="{{ color }}" fill-opacity="{{ opacity }}" />
+                <circle cx="7" cy="8" r="1" fill="{{ color }}" fill-opacity="{{ opacity }}" />
+                <circle cx="10" cy="7" r="1" fill="{{ color }}" fill-opacity="{{ opacity }}" />
+                <circle cx="13" cy="8" r="1" fill="{{ color }}" fill-opacity="{{ opacity }}" />
+            </g>
+        </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pattern-paws-rand-{{ size }})"/>
+</svg>
+{% endmacro %}
+
+{# 38. 草莓 (Strawberry) #}
+{% macro bg_strawberry(color='#ef5777', opacity=0.1, size=60) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <defs>
+        <pattern id="pattern-strawberry-{{ size }}" width="{{ size }}" height="{{ size }}" patternUnits="userSpaceOnUse">
+            <path d="M{{ size*0.3 }} {{ size*0.3 }} Q {{ size*0.5 }} {{ size*0.2 }} {{ size*0.7 }} {{ size*0.3 }} Q {{ size*0.8 }} {{ size*0.5 }} {{ size*0.5 }} {{ size*0.8 }} Q {{ size*0.2 }} {{ size*0.5 }} {{ size*0.3 }} {{ size*0.3 }}" fill="{{ color }}" fill-opacity="{{ opacity }}"/>
+            <!-- 叶子 (简化) -->
+             <path d="M{{ size*0.3 }} {{ size*0.3 }} L{{ size*0.5 }} {{ size*0.25 }} L{{ size*0.7 }} {{ size*0.3 }}" stroke="{{ color }}" stroke-width="1" stroke-opacity="{{ opacity }}" fill="none"/>
+        </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pattern-strawberry-{{ size }})"/>
+</svg>
+{% endmacro %}
+
+{# 39. 纸飞机 (Paper Planes) #}
+{% macro bg_paper_planes(color='#48dbfb', opacity=0.1, size=70) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <defs>
+        <pattern id="pattern-planes-{{ size }}" width="{{ size }}" height="{{ size }}" patternUnits="userSpaceOnUse">
+            <path d="M{{ size*0.2 }} {{ size*0.8 }} L{{ size*0.8 }} {{ size*0.2 }} L{{ size*0.6 }} {{ size*0.6 }} Z" fill="none" stroke="{{ color }}" stroke-width="1" stroke-opacity="{{ opacity }}" transform="rotate(-10 {{ size*0.5 }} {{ size*0.5 }})"/>
+            <path d="M{{ size*0.2 }} {{ size*0.8 }} L{{ size*0.8 }} {{ size*0.2 }}" stroke="{{ color }}" stroke-width="0.5" stroke-opacity="{{ opacity }}" stroke-dasharray="2,2"/>
+        </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pattern-planes-{{ size }})"/>
+</svg>
+{% endmacro %}
+
+{# 40. 柠檬切片 (Lemon Slices) #}
+{% macro bg_lemons(color='#f1c40f', opacity=0.1, size=60) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <defs>
+        <pattern id="pattern-lemons-{{ size }}" width="{{ size }}" height="{{ size }}" patternUnits="userSpaceOnUse">
+            <circle cx="{{ size*0.5 }}" cy="{{ size*0.5 }}" r="{{ size*0.25 }}" fill="none" stroke="{{ color }}" stroke-width="1" stroke-opacity="{{ opacity }}"/>
+            <path d="M{{ size*0.5 }} {{ size*0.5 }} L{{ size*0.5 }} {{ size*0.25 }}" stroke="{{ color }}" stroke-width="1" stroke-opacity="{{ opacity }}"/>
+            <path d="M{{ size*0.5 }} {{ size*0.5 }} L{{ size*0.75 }} {{ size*0.5 }}" stroke="{{ color }}" stroke-width="1" stroke-opacity="{{ opacity }}"/>
+            <path d="M{{ size*0.5 }} {{ size*0.5 }} L{{ size*0.5 }} {{ size*0.75 }}" stroke="{{ color }}" stroke-width="1" stroke-opacity="{{ opacity }}"/>
+            <path d="M{{ size*0.5 }} {{ size*0.5 }} L{{ size*0.25 }} {{ size*0.5 }}" stroke="{{ color }}" stroke-width="1" stroke-opacity="{{ opacity }}"/>
+        </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pattern-lemons-{{ size }})"/>
+</svg>
+{% endmacro %}
+
+{# 网格纹理 #}
+{% macro bg_grid(color='#000000', opacity=0.05, size=40, stroke=1) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"
+    style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <defs>
+        <pattern id="pattern-grid-{{ size }}" width="{{ size }}" height="{{ size }}" patternUnits="userSpaceOnUse">
+            <path d="M {{ size }} 0 L 0 0 0 {{ size }}" fill="none" stroke="{{ color }}" stroke-width="{{ stroke }}"
+                stroke-opacity="{{ opacity }}" />
+        </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pattern-grid-{{ size }})" />
+</svg>
+{% endmacro %}
+
+{# 斜线纹理 #}
+{% macro bg_stripes(color='#000000', opacity=0.05, size=10, stroke=2) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"
+    style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <defs>
+        <pattern id="pattern-stripes-{{ size }}" width="{{ size }}" height="{{ size }}" patternUnits="userSpaceOnUse"
+            patternTransform="rotate(45)">
+            <line x1="0" y1="0" x2="0" y2="{{ size }}" stroke="{{ color }}" stroke-width="{{ stroke }}"
+                stroke-opacity="{{ opacity }}" />
+        </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pattern-stripes-{{ size }})" />
+</svg>
+{% endmacro %}
+
+{# 十字纹理 #}
+{% macro bg_cross(color='#000000', opacity=0.05, size=20, stroke=1) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"
+    style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <defs>
+        <pattern id="pattern-cross-{{ size }}" width="{{ size }}" height="{{ size }}" patternUnits="userSpaceOnUse">
+            <path d="M{{ size/2 }} {{ size/4 }} V{{ size*3/4 }} M{{ size/4 }} {{ size/2 }} H{{ size*3/4 }}"
+                stroke="{{ color }}" stroke-width="{{ stroke }}" stroke-opacity="{{ opacity }}"
+                stroke-linecap="round" />
+        </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pattern-cross-{{ size }})" />
+</svg>
+{% endmacro %}
+
+{# 波浪纹理 #}
+{% macro bg_waves(color='#000000', opacity=0.05, size=20, stroke=1) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"
+    style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <defs>
+        <pattern id="pattern-waves-{{ size }}" width="{{ size }}" height="{{ size/2 }}" patternUnits="userSpaceOnUse">
+            <path d="M0 {{ size/4 }} Q {{ size/4 }} 0, {{ size/2 }} {{ size/4 }} T {{ size }} {{ size/4 }}" fill="none"
+                stroke="{{ color }}" stroke-width="{{ stroke }}" stroke-opacity="{{ opacity }}" />
+        </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pattern-waves-{{ size }})" />
+</svg>
+{% endmacro %}
+
+{# 等距立方体纹理 (科技感) #}
+{% macro bg_isometric(color='#000000', opacity=0.05, size=30, stroke=0.5) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"
+    style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <defs>
+        <pattern id="pattern-iso-{{ size }}" width="{{ size }}" height="{{ size * 1.732 }}"
+            patternUnits="userSpaceOnUse">
+            <path
+                d="M0 {{ size*0.866 }} L{{ size/2 }} 0 L{{ size }} {{ size*0.866 }} L{{ size/2 }} {{ size*1.732 }} Z M0 {{ size*0.866 }} L{{ size }} {{ size*0.866 }} M{{ size/2 }} 0 V{{ size*1.732 }}"
+                fill="none" stroke="{{ color }}" stroke-width="{{ stroke }}" stroke-opacity="{{ opacity }}" />
+        </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pattern-iso-{{ size }})" />
+</svg>
+{% endmacro %}
+
+{# 六边形/蜂巢纹理 (Hexagons) #}
+{% macro bg_hexagons(color='#000000', opacity=0.05, size=24, stroke=1) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"
+    style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <defs>
+        {# 宽高比约为 1:1.732 以实现无缝拼接 #}
+        <pattern id="pattern-hex-{{ size }}" width="{{ size * 3 }}" height="{{ size * 1.732 }}"
+            patternUnits="userSpaceOnUse" patternTransform="scale(1)">
+            <path
+                d="M {{ size * 0.5 }} 0 L {{ size * 1.5 }} 0 L {{ size * 2 }} {{ size * 0.866 }} L {{ size * 1.5 }} {{ size * 1.732 }} L {{ size * 0.5 }} {{ size * 1.732 }} L 0 {{ size * 0.866 }} Z M {{ size * 3.5 }} 0 L {{ size * 4.5 }} 0 L {{ size * 5 }} {{ size * 0.866 }} L {{ size * 4.5 }} {{ size * 1.732 }} L {{ size * 3.5 }} {{ size * 1.732 }} L {{ size * 3 }} {{ size * 0.866 }} Z"
+                fill="none" stroke="{{ color }}" stroke-width="{{ stroke }}" stroke-opacity="{{ opacity }}" />
+        </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pattern-hex-{{ size }})" />
+</svg>
+{% endmacro %}
+
+{# 电路板纹理 (Circuit) #}
+{% macro bg_circuit(color='#000000', opacity=0.05, size=60, stroke=1) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"
+    style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <defs>
+        <pattern id="pattern-circuit-{{ size }}" width="{{ size }}" height="{{ size }}" patternUnits="userSpaceOnUse">
+            <path
+                d="M{{size*0.2}} {{size*0.2}} H{{size*0.5}} V{{size*0.5}} M{{size*0.5}} {{size*0.5}} H{{size*0.8}} V{{size*0.2}} M{{size*0.2}} {{size*0.8}} H{{size*0.5}} V{{size*0.5}}"
+                fill="none" stroke="{{ color }}" stroke-width="{{ stroke }}" stroke-opacity="{{ opacity }}"
+                stroke-linecap="round" />
+            <circle cx="{{size*0.2}}" cy="{{size*0.2}}" r="{{stroke * 1.5}}" fill="{{ color }}"
+                fill-opacity="{{ opacity }}" />
+            <circle cx="{{size*0.8}}" cy="{{size*0.2}}" r="{{stroke * 1.5}}" fill="{{ color }}"
+                fill-opacity="{{ opacity }}" />
+            <circle cx="{{size*0.2}}" cy="{{size*0.8}}" r="{{stroke * 1.5}}" fill="{{ color }}"
+                fill-opacity="{{ opacity }}" />
+            <circle cx="{{size*0.5}}" cy="{{size*0.5}}" r="{{stroke * 1.5}}" fill="none" stroke="{{ color }}"
+                stroke-width="{{ stroke }}" stroke-opacity="{{ opacity }}" />
+        </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pattern-circuit-{{ size }})" />
+</svg>
+{% endmacro %}
+
+{# 锯齿纹理 (Zigzag) #}
+{% macro bg_zigzag(color='#000000', opacity=0.05, size=20, stroke=1) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"
+    style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <defs>
+        <pattern id="pattern-zigzag-{{ size }}" width="{{ size }}" height="{{ size }}" patternUnits="userSpaceOnUse">
+            <path d="M0 {{size}} L{{size/2}} 0 L{{size}} {{size}}" fill="none" stroke="{{ color }}"
+                stroke-width="{{ stroke }}" stroke-opacity="{{ opacity }}" />
+        </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pattern-zigzag-{{ size }})" />
+</svg>
+{% endmacro %}
+
+{# 加号阵列 (Plus) #}
+{% macro bg_plus(color='#000000', opacity=0.1, size=30, stroke=1) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"
+    style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <defs>
+        <pattern id="pattern-plus-{{ size }}" width="{{ size }}" height="{{ size }}" patternUnits="userSpaceOnUse">
+            <path d="M{{ size/2 }} {{ size/4 }} V{{ size*0.75 }} M{{ size/4 }} {{ size/2 }} H{{ size*0.75 }}"
+                stroke="{{ color }}" stroke-width="{{ stroke }}" stroke-opacity="{{ opacity }}"
+                stroke-linecap="round" />
+        </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pattern-plus-{{ size }})" />
+</svg>
+{% endmacro %}
+
+{# --- 3. 风格化纹理 (Stylized) --- #}
+
+{# 青海波 (Seigaiha - 日式传统) #}
+{% macro bg_seigaiha(color='#000000', opacity=0.05, size=40, stroke=1) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <defs>
+        <pattern id="pattern-seigaiha-{{ size }}" width="{{ size }}" height="{{ size/2 }}" patternUnits="userSpaceOnUse">
+            <path d="M{{ size/2 }} {{ size/2 }} m-{{ size/2 }} 0 a{{ size/2 }} {{ size/2 }} 0 1 1 {{ size }} 0" fill="none" stroke="{{ color }}" stroke-width="{{ stroke }}" stroke-opacity="{{ opacity }}" />
+            <path d="M{{ size/2 }} 0 m-{{ size/2 }} 0 a{{ size/2 }} {{ size/2 }} 0 1 1 {{ size }} 0" fill="none" stroke="{{ color }}" stroke-width="{{ stroke }}" stroke-opacity="{{ opacity }}" />
+            <path d="M0 0 a{{ size/2 }} {{ size/2 }} 0 0 1 {{ size/2 }} {{ size/2 }}" fill="none" stroke="{{ color }}" stroke-width="{{ stroke }}" stroke-opacity="{{ opacity }}" />
+            <path d="M{{ size }} 0 a{{ size/2 }} {{ size/2 }} 0 0 0 -{{ size/2 }} {{ size/2 }}" fill="none" stroke="{{ color }}" stroke-width="{{ stroke }}" stroke-opacity="{{ opacity }}" />
+        </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pattern-seigaiha-{{ size }})"/>
+</svg>
+{% endmacro %}
+
+{# 闪光/星光 (Sparkles - 可爱/魔法) #}
+{% macro bg_sparkles(color='#000000', opacity=0.1, size=40) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <defs>
+        <pattern id="pattern-sparkles-{{ size }}" width="{{ size }}" height="{{ size }}" patternUnits="userSpaceOnUse">
+            {# 四角星 #}
+            <path d="M{{size*0.5}} {{size*0.2}} Q{{size*0.55}} {{size*0.5}} {{size*0.8}} {{size*0.5}} Q{{size*0.55}} {{size*0.5}} {{size*0.5}} {{size*0.8}} Q{{size*0.45}} {{size*0.5}} {{size*0.2}} {{size*0.5}} Q{{size*0.45}} {{size*0.5}} {{size*0.5}} {{size*0.2}} Z" 
+                  fill="{{ color }}" fill-opacity="{{ opacity }}" />
+            {# 小圆点点缀 #}
+            <circle cx="{{size*0.8}}" cy="{{size*0.2}}" r="{{size*0.05}}" fill="{{ color }}" fill-opacity="{{ opacity * 0.6 }}" />
+            <circle cx="{{size*0.2}}" cy="{{size*0.8}}" r="{{size*0.03}}" fill="{{ color }}" fill-opacity="{{ opacity * 0.6 }}" />
+        </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pattern-sparkles-{{ size }})"/>
+</svg>
+{% endmacro %}
+
+{# 棋盘格 (Checkerboard - 透明感/功能性) #}
+{% macro bg_checkerboard(color='#000000', opacity=0.05, size=20) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <defs>
+        <pattern id="pattern-checker-{{ size }}" width="{{ size*2 }}" height="{{ size*2 }}" patternUnits="userSpaceOnUse">
+            <rect x="0" y="0" width="{{ size }}" height="{{ size }}" fill="{{ color }}" fill-opacity="{{ opacity }}" />
+            <rect x="{{ size }}" y="{{ size }}" width="{{ size }}" height="{{ size }}" fill="{{ color }}" fill-opacity="{{ opacity }}" />
+        </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pattern-checker-{{ size }})"/>
+</svg>
+{% endmacro %}
+
+{# 斜向网格 (Diagonal Grid - 战术/科技) #}
+{% macro bg_diagonal_grid(color='#000000', opacity=0.05, size=20, stroke=1) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <defs>
+        <pattern id="pattern-diag-grid-{{ size }}" width="{{ size }}" height="{{ size }}" patternUnits="userSpaceOnUse">
+            <path d="M-1,1 l2,-2 M0,{{ size }} l{{ size }},-{{ size }} M{{ size-1 }},{{ size+1 }} l2,-2" stroke="{{ color }}" stroke-width="{{ stroke }}" stroke-opacity="{{ opacity }}" />
+            <path d="M-1,{{ size-1 }} l2,2 M0,0 l{{ size }},{{ size }} M{{ size-1 }},-1 l2,2" stroke="{{ color }}" stroke-width="{{ stroke }}" stroke-opacity="{{ opacity }}" />
+        </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pattern-diag-grid-{{ size }})"/>
+</svg>
+{% endmacro %}
+
+{# --- 4. 可爱与二次元 (Cute & ACG) --- #}
+
+{# 樱花 (Sakura) #}
+{% macro bg_sakura(color='#000000', opacity=0.1, size=50) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <defs>
+        <pattern id="pattern-sakura-{{ size }}" width="{{ size }}" height="{{ size }}" patternUnits="userSpaceOnUse" patternTransform="rotate(15)">
+            {# 简化的五瓣花造型 #}
+            <path d="M{{size*0.5}} {{size*0.5}} 
+                     M{{size*0.5}} {{size*0.2}} C{{size*0.6}} {{size*0.1}} {{size*0.7}} {{size*0.3}} {{size*0.5}} {{size*0.5}}
+                     M{{size*0.5}} {{size*0.5}} C{{size*0.7}} {{size*0.4}} {{size*0.8}} {{size*0.6}} {{size*0.5}} {{size*0.8}}
+                     M{{size*0.5}} {{size*0.8}} C{{size*0.3}} {{size*0.9}} {{size*0.2}} {{size*0.7}} {{size*0.5}} {{size*0.5}}
+                     M{{size*0.5}} {{size*0.5}} C{{size*0.2}} {{size*0.6}} {{size*0.2}} {{size*0.3}} {{size*0.5}} {{size*0.2}}
+                     " fill="{{ color }}" fill-opacity="{{ opacity }}" stroke="none" />
+            {# 飘落的花瓣 #}
+            <circle cx="{{size*0.2}}" cy="{{size*0.8}}" r="{{size*0.06}}" fill="{{ color }}" fill-opacity="{{ opacity * 0.7 }}" />
+            <circle cx="{{size*0.8}}" cy="{{size*0.3}}" r="{{size*0.04}}" fill="{{ color }}" fill-opacity="{{ opacity * 0.7 }}" />
+        </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pattern-sakura-{{ size }})"/>
+</svg>
+{% endmacro %}
+
+{# 星月 (Moon & Stars - 魔法少女风) #}
+{% macro bg_moon_stars(color='#000000', opacity=0.1, size=60) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <defs>
+        <pattern id="pattern-moon-{{ size }}" width="{{ size }}" height="{{ size }}" patternUnits="userSpaceOnUse">
+            {# 月亮 #}
+            <path d="M{{size*0.3}} {{size*0.3}} a{{size*0.2}} {{size*0.2}} 0 1 0 {{size*0.2}} {{size*0.35}} a{{size*0.18}} {{size*0.18}} 0 1 1 -{{size*0.2}} -{{size*0.35}}" fill="{{ color }}" fill-opacity="{{ opacity }}" />
+            {# 星星 #}
+            <path d="M{{size*0.7}} {{size*0.2}} L{{size*0.75}} {{size*0.3}} L{{size*0.85}} {{size*0.3}} L{{size*0.77}} {{size*0.4}} L{{size*0.8}} {{size*0.5}} L{{size*0.7}} {{size*0.45}} L{{size*0.6}} {{size*0.5}} L{{size*0.63}} {{size*0.4}} L{{size*0.55}} {{size*0.3}} L{{size*0.65}} {{size*0.3}} Z" fill="{{ color }}" fill-opacity="{{ opacity }}" />
+            <circle cx="{{size*0.8}}" cy="{{size*0.8}}" r="{{size*0.03}}" fill="{{ color }}" fill-opacity="{{ opacity }}" />
+        </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pattern-moon-{{ size }})"/>
+</svg>
+{% endmacro %}
+
+{# 猫爪 (Paws - 萌宠/可爱) #}
+{% macro bg_paws(color='#000000', opacity=0.1, size=50) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <defs>
+        <pattern id="pattern-paws-{{ size }}" width="{{ size }}" height="{{ size }}" patternUnits="userSpaceOnUse" patternTransform="rotate(-20)">
+            {# 掌心 #}
+            <ellipse cx="{{size*0.5}}" cy="{{size*0.6}}" rx="{{size*0.15}}" ry="{{size*0.12}}" fill="{{ color }}" fill-opacity="{{ opacity }}" />
+            {# 脚趾 #}
+            <circle cx="{{size*0.35}}" cy="{{size*0.4}}" r="{{size*0.05}}" fill="{{ color }}" fill-opacity="{{ opacity }}" />
+            <circle cx="{{size*0.5}}" cy="{{size*0.35}}" r="{{size*0.05}}" fill="{{ color }}" fill-opacity="{{ opacity }}" />
+            <circle cx="{{size*0.65}}" cy="{{size*0.4}}" r="{{size*0.05}}" fill="{{ color }}" fill-opacity="{{ opacity }}" />
+        </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pattern-paws-{{ size }})"/>
+</svg>
+{% endmacro %}
+
+{# 格纹/JK裙 (Gingham - 校园风) #}
+{% macro bg_gingham(color='#000000', opacity=0.05, size=40) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <defs>
+        <pattern id="pattern-gingham-{{ size }}" width="{{ size }}" height="{{ size }}" patternUnits="userSpaceOnUse">
+            <rect x="0" y="0" width="{{ size/2 }}" height="{{ size/2 }}" fill="{{ color }}" fill-opacity="{{ opacity }}" />
+            <rect x="{{ size/2 }}" y="{{ size/2 }}" width="{{ size/2 }}" height="{{ size/2 }}" fill="{{ color }}" fill-opacity="{{ opacity }}" />
+            {# 叠加层创造深色交叉 #}
+            <rect x="0" y="0" width="{{ size }}" height="{{ size/2 }}" fill="{{ color }}" fill-opacity="{{ opacity * 0.5 }}" />
+            <rect x="0" y="0" width="{{ size/2 }}" height="{{ size }}" fill="{{ color }}" fill-opacity="{{ opacity * 0.5 }}" />
+        </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pattern-gingham-{{ size }})"/>
+</svg>
+{% endmacro %}
+
+{# --- 2. 形状分隔符 (Shape Dividers) --- #}
+{# 通常用于容器底部，连接下一个白色/纯色区域 #}
+
+{# 波浪形 (底部) #}
+{% macro divider_wave(fill='#ffffff', height='50px', opacity=1.0) %}
+<div
+    style="position: absolute; bottom: -1px; left: 0; width: 100%; overflow: hidden; line-height: 0; transform: rotate(180deg); z-index: 1;">
+    <svg data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none"
+        style="position: relative; display: block; width: calc(100% + 1.3px); height: {{ height }};">
+        <path
+            d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V0H0V27.35A600.21,600.21,0,0,0,321.39,56.44Z"
+            fill="{{ fill }}" fill-opacity="{{ opacity }}"></path>
+    </svg>
+</div>
+{% endmacro %}
+
+{# 斜切形 (底部) #}
+{% macro divider_tilt(fill='#ffffff', height='60px', opacity=1.0) %}
+<div style="position: absolute; bottom: -1px; left: 0; width: 100%; overflow: hidden; line-height: 0; z-index: 1;">
+    <svg data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none"
+        style="position: relative; display: block; width: calc(100% + 1.3px); height: {{ height }};">
+        <path d="M1200 120L0 16.48V0h1200v120z" fill="{{ fill }}" fill-opacity="{{ opacity }}"></path>
+    </svg>
+</div>
+{% endmacro %}
+
+{# 曲线形 (底部) #}
+{% macro divider_curve(fill='#ffffff', height='50px', opacity=1.0) %}
+<div style="position: absolute; bottom: -1px; left: 0; width: 100%; overflow: hidden; line-height: 0; z-index: 1;">
+    <svg data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none"
+        style="position: relative; display: block; width: calc(100% + 1.3px); height: {{ height }};">
+        <path
+            d="M0,0V46.29c47.79,22.2,103.59,32.17,158,28,70.36-5.37,136.33-33.31,206.8-37.5C438.64,32.43,512.34,53.67,583,72.05c69.27,18,138.3,24.88,209.4,13.08,36.15-6,69.85-17.84,104.45-29.34C989.49,25,1113-14.29,1200,52.47V0Z"
+            opacity=".25" fill="{{ fill }}"></path>
+        <path
+            d="M0,0V15.81C13,36.92,27.64,56.86,47.69,72.05,99.41,111.27,165,111,224.58,91.58c31.15-10.15,60.09-26.07,89.67-39.8,40.92-19,84.73-46,130.83-49.67,36.26-2.85,70.9,9.42,98.6,31.56,31.77,25.39,62.32,62,103.63,73,40.44,10.79,81.35-6.69,119.13-24.28s75.16-39,116.92-43.05c59.73-5.85,113.28,22.88,168.9,38.84,30.2,8.66,59,6.17,87.09-7.5,22.43-10.89,48-26.93,60.65-49.24V0Z"
+            opacity=".5" fill="{{ fill }}"></path>
+        <path
+            d="M0,0V5.63C149.93,59,314.09,71.32,475.83,42.57c43-7.64,84.23-20.12,127.61-26.46,59-8.63,112.48,12.24,165.56,35.4C827.93,77.22,886,95.24,951.2,90c86.53-7,172.46-45.71,248.8-84.81V0Z"
+            fill="{{ fill }}" fill-opacity="{{ opacity }}"></path>
+    </svg>
+</div>
+{% endmacro %}
+
+{# 锯齿形 (底部) #}
+{% macro divider_arrow(fill='#ffffff', height='40px', opacity=1.0) %}
+<div style="position: absolute; bottom: -1px; left: 0; width: 100%; overflow: hidden; line-height: 0; z-index: 1;">
+    <svg data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none"
+        style="position: relative; display: block; width: calc(100% + 1.3px); height: {{ height }};">
+        <path d="M649.97 0L550.03 0 599.91 54.12 649.97 0zM1200 100L1200 0 650 0 600 53.77 550 0 0 0 0 100 1200 100z"
+            fill="{{ fill }}" fill-opacity="{{ opacity }}"></path>
+    </svg>
+</div>
+{% endmacro %}
+
+{# 11. 地形等高线 (Topography) #}
+{% macro bg_topography(color='#000000', opacity=0.05, size=100) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <filter id="noise">
+        <feTurbulence type="fractalNoise" baseFrequency="0.015" numOctaves="2" result="turbulence"/>
+        <feDisplacementMap in2="turbulence" in="SourceGraphic" scale="20" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <rect width="100%" height="100%" fill="transparent" />
+    <path d="M0 20 Q 50 40 100 20 T 200 20" stroke="{{ color }}" stroke-width="1" stroke-opacity="{{ opacity }}" fill="none" filter="url(#noise)" />
+    <path d="M0 50 Q 50 70 100 50 T 200 50" stroke="{{ color }}" stroke-width="1" stroke-opacity="{{ opacity }}" fill="none" filter="url(#noise)" />
+    <path d="M0 80 Q 50 100 100 80 T 200 80" stroke="{{ color }}" stroke-width="1" stroke-opacity="{{ opacity }}" fill="none" filter="url(#noise)" />
+</svg>
+{% endmacro %}
+
+{# 12. 碳纤维 (Carbon Fiber) #}
+{% macro bg_carbon(color='#111', opacity=0.1, size=10) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <defs>
+        <pattern id="pattern-carbon-{{ size }}" width="{{ size }}" height="{{ size }}" patternUnits="userSpaceOnUse">
+            <rect width="{{ size }}" height="{{ size }}" fill="#222" fill-opacity="{{ opacity }}"/>
+            <path d="M0 0L{{ size }} {{ size }}M{{ size/2 }} 0L{{ size }} {{ size/2 }}M0 {{ size/2 }}L{{ size/2 }} {{ size }}" stroke="{{ color }}" stroke-width="1" stroke-opacity="{{ opacity * 1.5 }}"/>
+        </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pattern-carbon-{{ size }})"/>
+</svg>
+{% endmacro %}
+
+{# 13. 纸张纹理 (Paper Grain - using noise) #}
+{% macro bg_noise(opacity=0.05) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <filter id="noiseFilter">
+        <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="3" stitchTiles="stitch"/>
+    </filter>
+    <rect width="100%" height="100%" filter="url(#noiseFilter)" opacity="{{ opacity }}"/>
+</svg>
+{% endmacro %}
+
+{# 14. 蓝图网格 (Blueprint) #}
+{% macro bg_blueprint(color='#ffffff', bg_color='#0044aa', opacity=0.2, size=40) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute; top:0; left:0; z-index:0; pointer-events:none; background-color: {{ bg_color }};">
+    <defs>
+        <pattern id="pattern-blueprint-{{ size }}" width="{{ size }}" height="{{ size }}" patternUnits="userSpaceOnUse">
+            <path d="M {{ size }} 0 L 0 0 0 {{ size }}" fill="none" stroke="{{ color }}" stroke-width="1" stroke-opacity="{{ opacity }}"/>
+            <path d="M {{ size/2 }} 0 L 0 0 0 {{ size/2 }}" fill="none" stroke="{{ color }}" stroke-width="0.5" stroke-opacity="{{ opacity * 0.5 }}"/>
+            <path d="M {{ size }} {{ size/2 }} L {{ size/2 }} {{ size/2 }} {{ size/2 }} {{ size }}" fill="none" stroke="{{ color }}" stroke-width="0.5" stroke-opacity="{{ opacity * 0.5 }}"/>
+            <path d="M {{ size*0.2 }} {{ size*0.2 }} l 2 2 m -2 0 l 2 -2" stroke="{{ color }}" stroke-width="1" stroke-opacity="{{ opacity }}"/>
+        </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pattern-blueprint-{{ size }})"/>
+</svg>
+{% endmacro %}
+
+{# 15. 孟菲斯风格 (Memphis - Random shapes) #}
+{% macro bg_memphis(color='#ff0055', opacity=0.1, size=60) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <defs>
+        <pattern id="pattern-memphis-{{ size }}" width="{{ size }}" height="{{ size }}" patternUnits="userSpaceOnUse">
+            <circle cx="{{size*0.2}}" cy="{{size*0.2}}" r="{{size*0.05}}" fill="{{ color }}" fill-opacity="{{ opacity }}"/>
+            <rect x="{{size*0.6}}" y="{{size*0.1}}" width="{{size*0.1}}" height="{{size*0.1}}" fill="none" stroke="{{ color }}" stroke-width="2" stroke-opacity="{{ opacity }}"/>
+            <path d="M{{size*0.3}} {{size*0.7}} l{{size*0.1}} {{size*0.1}}" stroke="{{ color }}" stroke-width="2" stroke-opacity="{{ opacity }}"/>
+            <path d="M{{size*0.8}} {{size*0.6}} l-{{size*0.1}} {{size*0.2}}" stroke="{{ color }}" stroke-width="2" stroke-opacity="{{ opacity }}"/>
+        </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pattern-memphis-{{ size }})"/>
+</svg>
+{% endmacro %}
+
+{# 16. 砖墙 (Brick Wall) #}
+{% macro bg_bricks(color='#000000', opacity=0.05, size=40) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <defs>
+        <pattern id="pattern-bricks-{{ size }}" width="{{ size }}" height="{{ size/2 }}" patternUnits="userSpaceOnUse">
+            <path d="M0 0 L{{ size }} 0 M0 {{ size/2 }} L{{ size }} {{ size/2 }} M{{ size/2 }} 0 V{{ size/2 }} M0 {{ size/2 }} V{{ size }} M{{ size }} {{ size/2 }} V{{ size }}" 
+                  fill="none" stroke="{{ color }}" stroke-width="1" stroke-opacity="{{ opacity }}"/>
+        </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pattern-bricks-{{ size }})"/>
+</svg>
+{% endmacro %}
+
+{# 17. 菱形 (Argyle) #}
+{% macro bg_argyle(color='#000000', opacity=0.05, size=40) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <defs>
+        <pattern id="pattern-argyle-{{ size }}" width="{{ size }}" height="{{ size }}" patternUnits="userSpaceOnUse">
+            <path d="M{{size/2}} 0 L{{size}} {{size/2}} L{{size/2}} {{size}} L0 {{size/2}} Z" fill="none" stroke="{{ color }}" stroke-width="1" stroke-opacity="{{ opacity }}"/>
+            <path d="M{{size/2}} {{size*0.2}} V{{size*0.8}} M{{size*0.2}} {{size/2}} H{{size*0.8}}" stroke="{{ color }}" stroke-width="0.5" stroke-opacity="{{ opacity }}" stroke-dasharray="2,2"/>
+        </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pattern-argyle-{{ size }})"/>
+</svg>
+{% endmacro %}
+
+{# 18. 鱼鳞 (Fish Scales) #}
+{% macro bg_fish_scales(color='#000000', opacity=0.05, size=30) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <defs>
+        <pattern id="pattern-fish-{{ size }}" width="{{ size }}" height="{{ size*0.6 }}" patternUnits="userSpaceOnUse">
+            <path d="M0 {{size*0.3}} Q {{size*0.5}} {{size*0.9}} {{size}} {{size*0.3}}" fill="none" stroke="{{ color }}" stroke-width="1" stroke-opacity="{{ opacity }}"/>
+            <path d="M{{size*0.5}} 0 Q {{size}} {{size*0.6}} {{size*1.5}} 0" fill="none" stroke="{{ color }}" stroke-width="1" stroke-opacity="{{ opacity }}"/>
+        </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pattern-fish-{{ size }})"/>
+</svg>
+{% endmacro %}
+
+{# 19. 星空 (Stars Random) #}
+{% macro bg_stars_random(color='#000000', opacity=0.1, size=100) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <defs>
+        <pattern id="pattern-stars-rand-{{ size }}" width="{{ size }}" height="{{ size }}" patternUnits="userSpaceOnUse">
+            <circle cx="{{size*0.1}}" cy="{{size*0.2}}" r="1" fill="{{ color }}" fill-opacity="{{ opacity }}"/>
+            <circle cx="{{size*0.4}}" cy="{{size*0.6}}" r="1.5" fill="{{ color }}" fill-opacity="{{ opacity }}"/>
+            <circle cx="{{size*0.8}}" cy="{{size*0.3}}" r="1" fill="{{ color }}" fill-opacity="{{ opacity }}"/>
+            <circle cx="{{size*0.7}}" cy="{{size*0.8}}" r="2" fill="{{ color }}" fill-opacity="{{ opacity }}"/>
+            <circle cx="{{size*0.2}}" cy="{{size*0.9}}" r="1" fill="{{ color }}" fill-opacity="{{ opacity }}"/>
+        </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pattern-stars-rand-{{ size }})"/>
+</svg>
+{% endmacro %}
+
+{# 20. 编织 (Basket Weave) #}
+{% macro bg_weave(color='#000000', opacity=0.05, size=20) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <defs>
+        <pattern id="pattern-weave-{{ size }}" width="{{ size }}" height="{{ size }}" patternUnits="userSpaceOnUse">
+             <rect x="0" y="0" width="{{ size }}" height="{{ size/2 }}" fill="none" stroke="{{ color }}" stroke-width="1" stroke-opacity="{{ opacity }}"/>
+             <rect x="{{ size/2 }}" y="{{ size/2 }}" width="{{ size }}" height="{{ size/2 }}" fill="none" stroke="{{ color }}" stroke-width="1" stroke-opacity="{{ opacity }}"/>
+             <line x1="{{ size/2 }}" y1="0" x2="{{ size/2 }}" y2="{{ size }}" stroke="{{ color }}" stroke-width="1" stroke-opacity="{{ opacity }}"/>
+        </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pattern-weave-{{ size }})"/>
+</svg>
+{% endmacro %}
+
+
+{# 21. 随机圆点 (Random Dots) #}
+{% macro bg_random_dots(color='#000', opacity=0.1, size=100) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <defs>
+        <pattern id="pattern-rand-dots-{{ size }}" width="{{ size }}" height="{{ size }}" patternUnits="userSpaceOnUse">
+            <circle cx="{{ size*0.2 }}" cy="{{ size*0.2 }}" r="2" fill="{{ color }}" fill-opacity="{{ opacity }}"/>
+            <circle cx="{{ size*0.5 }}" cy="{{ size*0.8 }}" r="1.5" fill="{{ color }}" fill-opacity="{{ opacity }}"/>
+            <circle cx="{{ size*0.8 }}" cy="{{ size*0.4 }}" r="2.5" fill="{{ color }}" fill-opacity="{{ opacity }}"/>
+            <circle cx="{{ size*0.1 }}" cy="{{ size*0.9 }}" r="1" fill="{{ color }}" fill-opacity="{{ opacity }}"/>
+            <circle cx="{{ size*0.7 }}" cy="{{ size*0.1 }}" r="1.5" fill="{{ color }}" fill-opacity="{{ opacity }}"/>
+        </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pattern-rand-dots-{{ size }})"/>
+</svg>
+{% endmacro %}
+
+{# 22. 倾斜条纹 (Diagonal Stripes Thick) #}
+{% macro bg_stripes_thick(color='#000', opacity=0.05, size=20) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <defs>
+        <pattern id="pattern-stripes-thick-{{ size }}" width="{{ size }}" height="{{ size }}" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <rect x="0" y="0" width="{{ size/2 }}" height="{{ size }}" fill="{{ color }}" fill-opacity="{{ opacity }}"/>
+        </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pattern-stripes-thick-{{ size }})"/>
+</svg>
+{% endmacro %}
+
+{# 23. 井字格 (Tic Tac Toe) #}
+{% macro bg_tic_tac_toe(color='#000', opacity=0.05, size=40) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <defs>
+        <pattern id="pattern-ttt-{{ size }}" width="{{ size }}" height="{{ size }}" patternUnits="userSpaceOnUse">
+            <path d="M{{ size/3 }} 0 V{{ size }} M{{ size*2/3 }} 0 V{{ size }} M0 {{ size/3 }} H{{ size }} M0 {{ size*2/3 }} H{{ size }}" stroke="{{ color }}" stroke-width="1" stroke-opacity="{{ opacity }}"/>
+        </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pattern-ttt-{{ size }})"/>
+</svg>
+{% endmacro %}
+
+{# 24. 几何三角形 (Geometric Triangles) #}
+{% macro bg_geo_triangles(color='#000', opacity=0.05, size=40) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <defs>
+        <pattern id="pattern-geo-tri-{{ size }}" width="{{ size }}" height="{{ size }}" patternUnits="userSpaceOnUse">
+            <path d="M0 0 L{{ size }} 0 L0 {{ size }} Z" fill="{{ color }}" fill-opacity="{{ opacity }}"/>
+        </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pattern-geo-tri-{{ size }})"/>
+</svg>
+{% endmacro %}
+
+{# 25. 鱼骨纹 (Herringbone) #}
+{% macro bg_herringbone(color='#000', opacity=0.05, size=20) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <defs>
+        <pattern id="pattern-herringbone-{{ size }}" width="{{ size*2 }}" height="{{ size }}" patternUnits="userSpaceOnUse">
+            <path d="M0 0 L{{ size }} {{ size }} M{{ size }} 0 L{{ size*2 }} {{ size }}" stroke="{{ color }}" stroke-width="1" stroke-opacity="{{ opacity }}" fill="none"/>
+            <path d="M{{ size }} 0 L0 {{ size }} M{{ size*2 }} 0 L{{ size }} {{ size }}" stroke="{{ color }}" stroke-width="1" stroke-opacity="{{ opacity }}" fill="none"/>
+        </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pattern-herringbone-{{ size }})"/>
+</svg>
+{% endmacro %}
+
+{# 26. 砖块 (Brick Wall) #}
+{% macro bg_brick_wall(color='#000', opacity=0.05, size=40) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <defs>
+        <pattern id="pattern-bricks-{{ size }}" width="{{ size }}" height="{{ size/2 }}" patternUnits="userSpaceOnUse">
+            <path d="M0 0 H{{ size }} M0 {{ size/2 }} H{{ size }} M{{ size/2 }} 0 V{{ size/2 }} M0 {{ size/2 }} V{{ size }} M{{ size }} {{ size/2 }} V{{ size }}" stroke="{{ color }}" stroke-width="1" stroke-opacity="{{ opacity }}" fill="none"/>
+        </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pattern-bricks-{{ size }})"/>
+</svg>
+{% endmacro %}
+
+{# 27. 摩斯密码 (Morse) #}
+{% macro bg_morse(color='#000', opacity=0.1, size=60) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <defs>
+        <pattern id="pattern-morse-{{ size }}" width="{{ size }}" height="{{ size/4 }}" patternUnits="userSpaceOnUse">
+            <rect x="5" y="5" width="5" height="5" fill="{{ color }}" fill-opacity="{{ opacity }}"/>
+            <rect x="15" y="5" width="15" height="5" fill="{{ color }}" fill-opacity="{{ opacity }}"/>
+            <rect x="35" y="5" width="5" height="5" fill="{{ color }}" fill-opacity="{{ opacity }}"/>
+            <rect x="45" y="5" width="5" height="5" fill="{{ color }}" fill-opacity="{{ opacity }}"/>
+        </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pattern-morse-{{ size }})"/>
+</svg>
+{% endmacro %}
+
+{# 28. 交叉圆圈 (Overlapping Circles) #}
+{% macro bg_overlap_circles(color='#000', opacity=0.05, size=40) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <defs>
+        <pattern id="pattern-overlap-circles-{{ size }}" width="{{ size }}" height="{{ size }}" patternUnits="userSpaceOnUse">
+            <circle cx="0" cy="0" r="{{ size/1.5 }}" stroke="{{ color }}" stroke-width="1" stroke-opacity="{{ opacity }}" fill="none"/>
+            <circle cx="{{ size }}" cy="0" r="{{ size/1.5 }}" stroke="{{ color }}" stroke-width="1" stroke-opacity="{{ opacity }}" fill="none"/>
+            <circle cx="0" cy="{{ size }}" r="{{ size/1.5 }}" stroke="{{ color }}" stroke-width="1" stroke-opacity="{{ opacity }}" fill="none"/>
+            <circle cx="{{ size }}" cy="{{ size }}" r="{{ size/1.5 }}" stroke="{{ color }}" stroke-width="1" stroke-opacity="{{ opacity }}" fill="none"/>
+        </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pattern-overlap-circles-{{ size }})"/>
+</svg>
+{% endmacro %}
+
+{# 29. 纸屑 (Confetti) #}
+{% macro bg_confetti(color='#000', opacity=0.1, size=60) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <defs>
+        <pattern id="pattern-confetti-{{ size }}" width="{{ size }}" height="{{ size }}" patternUnits="userSpaceOnUse">
+             <rect x="{{ size*0.1 }}" y="{{ size*0.1 }}" width="4" height="8" fill="{{ color }}" fill-opacity="{{ opacity }}" transform="rotate(45 {{ size*0.1 }} {{ size*0.1 }})"/>
+             <circle cx="{{ size*0.5 }}" cy="{{ size*0.4 }}" r="3" fill="{{ color }}" fill-opacity="{{ opacity }}"/>
+             <polygon points="{{ size*0.8 }},{{ size*0.7 }} {{ size*0.9 }},{{ size*0.9 }} {{ size*0.7 }},{{ size*0.9 }}" fill="{{ color }}" fill-opacity="{{ opacity }}" transform="rotate(20 {{ size*0.8 }} {{ size*0.8 }})"/>
+        </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pattern-confetti-{{ size }})"/>
+</svg>
+{% endmacro %}
+
+{# 30. 电路板简化 (Circuit Simple) #}
+{% macro bg_circuit_simple(color='#000', opacity=0.1, size=40) %}
+<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute; top:0; left:0; z-index:0; pointer-events:none;">
+    <defs>
+        <pattern id="pattern-circuit-simp-{{ size }}" width="{{ size }}" height="{{ size }}" patternUnits="userSpaceOnUse">
+             <path d="M{{ size/2 }} {{ size/2 }} h{{ size/2 }} v-{{ size/2 }}" fill="none" stroke="{{ color }}" stroke-width="1" stroke-opacity="{{ opacity }}"/>
+             <circle cx="{{ size/2 }}" cy="{{ size/2 }}" r="2" fill="{{ color }}" fill-opacity="{{ opacity }}"/>
+        </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#pattern-circuit-simp-{{ size }})"/>
+</svg>
+{% endmacro %}

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Layout</title>
+    <style>
+        body { margin: 0; background-color: transparent; }
+        .wrapper {
+            padding: {{ data.options.padding | default('0px') }};
+            box-sizing: border-box;
+        }
+    </style>
+    {% block layout_style %}{% endblock %}
+</head>
+<body>
+    <div class="wrapper">
+        {% block layout_content %}{% endblock %}
+    </div>
+</body>
+</html>

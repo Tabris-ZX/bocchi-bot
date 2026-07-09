@@ -1,0 +1,106 @@
+{% extends 'partials/_base.html' %}
+{% import "macros/icons.jinja" as icons %}
+{% import "macros/svg_patterns.jinja" as patterns %}
+
+{% block title %}波奇BOT功能菜单{% endblock %}
+
+{% block page_styles %}
+<style>
+    {% include './style.css' %}
+</style>
+{% endblock %}
+
+{% block body_content %}
+
+<div class="wrapper">
+    {{ patterns.bg_sprinkles(color='#FF9A9E', opacity=0.15, size=50) }}
+
+    <div class="header">
+        <img src="{{ asset('./img/text.webp') }}" class="header-logo" alt="Logo">
+
+        <div class="header-stats">
+            <div class="stat-box">
+                <span class="stat-num">{{ data.plugin_count }}</span>
+                <span class="stat-label">总功能</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-num">{{ data.active_count }}</span>
+                <span class="stat-label">可用</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-num" style="font-size: 24px; line-height: 42px;">{{ data.bot_name }}</span>
+                <span class="stat-label">System</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="tips-section">
+        <div class="tip-pill">
+            <span class="tip-icon">📌</span> 发送 "帮助 [功能名/ID]" 查看详情
+        </div>
+        <div class="tip-pill">
+            <span class="tip-icon">📋</span> 发送 "详细帮助" 查看所有指令
+        </div>
+        <div class="tip-pill">
+            <span class="tip-icon">👑</span> 群主/管理使用 "管理员帮助"
+        </div>
+    </div>
+
+    <div class="masonry-container">
+        {% set colors = [
+        'var-pink', 'var-blue', 'var-orange', 'var-green', 'var-purple',
+        'var-rose', 'var-teal', 'var-indigo', 'var-slate', 'var-cyan'
+        ] %}
+
+        {% for category in data.categories %}
+        {% set current_color = colors[loop.index0 % colors|length] %}
+        <div class="category-card {{ current_color }}">
+            <div class="cat-header">
+                <div class="cat-title">{{ category.name }}</div>
+                <div class="cat-count">{{ category.items | length }}</div>
+            </div>
+
+            <div class="plugin-list">
+                {% if category.items | length == 0 %}
+                <div style="text-align: center; padding: 20px; color: #ccc; font-size: 13px;">暂无功能</div>
+                {% else %}
+                {% for item in category.items %}
+                <div class="plugin-item {% if item.status != 0 %}disabled{% endif %}">
+                    <span class="p-id">{{ item.id }}</span>
+
+                    <div class="p-content">
+                        <div class="p-name">{{ item.name }}</div>
+                        {% if data.is_detail and item.commands %}
+                        <div class="p-commands">
+                            {% for cmd in item.commands %}
+                            <span class="cmd-tag">{{ cmd }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="badges">
+                        {% if item.status == 3 %}
+                        <span class="badge status-global" title="全局关闭">⊘</span>
+                        {% elif item.status == 2 %}
+                        <span class="badge status-su" title="系统锁定">🔒</span>
+                        {% elif item.status == 1 %}
+                        <span class="badge status-group" title="群内关闭">−</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% set random_footer = random_asset('ui/img-random') %}
+    {% if random_footer %}
+    <img src="{{ random_footer }}" class="footer-deco" alt="decoration">
+    {% endif %}
+
+    {% include 'partials/_footer.html' %}
+</div>
+{% endblock %}

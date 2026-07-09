@@ -1,0 +1,5 @@
+{
+  "name": "Markdown 转图片",
+  "engine": "markdown",
+  "entrypoint": "renderer.html"
+}
