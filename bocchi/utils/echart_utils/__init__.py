@@ -3,12 +3,12 @@ from pathlib import Path
 import random
 
 from bocchi import ui
-from bocchi.ui.models import BarChartData
+from bocchi.ui.models.charts import EChartsData
 
 from .models import Barh
 
 BACKGROUND_PATH = (
-    Path() / "resources" / "themes" / "default" / "assets" / "bar_chart" / "background"
+    Path() / "resources" / "themes" / "default" / "assets" / "ui" / "background"
 )
 
 
@@ -21,12 +21,14 @@ class ChartUtils:
             if BACKGROUND_PATH.exists()
             else None
         )
-        chart_component = BarChartData(
+
+        items = list(zip(data.category_data, data.data))
+
+        chart_data = EChartsData.bar_chart(
             title=data.title,
-            category_data=data.category_data,
-            data=data.data,
-            background_image=background_image_name,
+            items=items,  # type: ignore
             direction="horizontal",
+            background_image=background_image_name,
         )
 
-        return await ui.render(chart_component)
+        return await ui.render(chart_data)

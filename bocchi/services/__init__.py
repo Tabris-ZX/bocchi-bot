@@ -18,61 +18,33 @@ require("nonebot_plugin_htmlrender")
 require("nonebot_plugin_uninfo")
 require("nonebot_plugin_waiter")
 
+from .ai import chat
+from .avatar_service import avatar_service
 from .db_context import Model, disconnect, with_db_timeout
-from .llm import (
-    AI,
-    AIConfig,
-    CommonOverrides,
-    LLMContentPart,
-    LLMException,
-    LLMGenerationConfig,
-    LLMMessage,
-    chat,
-    clear_model_cache,
-    code,
-    create_multimodal_message,
-    embed,
-    generate,
-    generate_structured,
-    get_cache_stats,
-    get_model_instance,
-    list_available_models,
-    list_embedding_models,
-    search,
-    set_global_default_model_name,
-)
+from .group_settings_service import group_settings_service
 from .log import logger
 from .plugin_init import PluginInit, PluginInitManager
 from .renderer import renderer_service
-from .scheduler import scheduler_manager
+from .scheduler import (
+    ExecutionPolicy,
+    ScheduleContext,
+    Trigger,
+    scheduler_manager,
+)
 
 __all__ = [
-    "AI",
-    "AIConfig",
-    "CommonOverrides",
-    "LLMContentPart",
-    "LLMException",
-    "LLMGenerationConfig",
-    "LLMMessage",
+    "ExecutionPolicy",
     "Model",
     "PluginInit",
     "PluginInitManager",
+    "ScheduleContext",
+    "Trigger",
+    "avatar_service",
     "chat",
-    "clear_model_cache",
-    "code",
-    "create_multimodal_message",
     "disconnect",
-    "embed",
-    "generate",
-    "generate_structured",
-    "get_cache_stats",
-    "get_model_instance",
-    "list_available_models",
-    "list_embedding_models",
+    "group_settings_service",
     "logger",
     "renderer_service",
     "scheduler_manager",
-    "search",
-    "set_global_default_model_name",
     "with_db_timeout",
 ]

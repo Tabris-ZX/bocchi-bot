@@ -1,0 +1,782 @@
+import asyncio
+from pathlib import Path
+import re
+import time
+from typing import Any
+
+from nonebot.adapters.onebot.v11 import Bot
+from nonebot.adapters.onebot.v11.exception import ActionFailed, NetworkError
+
+from bocchi.models.chat_history import ChatHistory
+from bocchi.services.avatar_service import avatar_service
+from bocchi.services.log import logger
+from bocchi.utils.decorator.retry import Retry
+from bocchi.utils.platform import PlatformUtils
+from bocchi.utils.time_utils import TimeUtils
+
+from .. import base_config
+from ..config import summary_config
+from .core import ErrorCode, SummaryException
+
+_message_cache: dict[str, tuple[tuple[list, dict], float]] = {}
+
+
+def _truncate_username(username: str) -> str:
+    """如果用户名过长，则进行截断处理，保留前后部分。"""
+    max_len = summary_config.get_username_max_length()
+    if len(username) > max_len:
+        keep_len = (max_len - 3) // 2
+        if keep_len < 1:
+            keep_len = 1
+        truncated_name = f"{username[:keep_len]}...{username[-keep_len:]}"
+        logger.trace(f"用户名 '{username}' 过长，已截断为 '{truncated_name}'")
+        return truncated_name
+    return username
+
+
+async def get_group_messages(
+    bot: Bot,
+    group_id: int,
+    count: int | str,
+    use_db: bool = False,
+    target_user_ids: set[str] | None = None,
+) -> tuple[list[dict], dict[str, str]]:
+    """获取群聊消息，支持从数据库或API获取，可选用户过滤和消息处理"""
+
+    cache_ttl = base_config.get("MESSAGE_CACHE_TTL_SECONDS", 300)
+    group_id_str = str(group_id)
+    cache_key: str | None = None
+
+    if cache_ttl > 0 and not target_user_ids:
+        cache_key = f"{group_id_str}:{count}" if isinstance(count, int) else None
+        current_time = time.time()
+
+        if cache_key and cache_key in _message_cache:
+            cached_data, timestamp = _message_cache[cache_key]
+            if current_time - timestamp < cache_ttl:
+                logger.debug(
+                    f"命中消息缓存 (群: {group_id}, 数量: {count})，"
+                    f"剩余有效期: {cache_ttl - (current_time - timestamp):.1f}s"
+                )
+                import copy
+
+                return copy.deepcopy(cached_data)
+
+    raw_messages: list = []
+    max_len = base_config.get("SUMMARY_MAX_LENGTH", 1000)
+
+    if isinstance(count, str) and count == "当天":
+        logger.debug(
+            f"进入当天总结模式，最大消息数: {max_len}", command="get_group_messages"
+        )
+        today_start = TimeUtils.get_day_start()
+
+        if use_db and ChatHistory:
+            try:
+                total_today_count = await ChatHistory.filter(
+                    group_id=group_id_str, create_time__gte=today_start
+                ).count()
+                logger.info(
+                    f"群聊 {group_id} 今日总消息数: {total_today_count}",
+                    command="DB历史",
+                )
+                logger.debug(
+                    f"尝试从数据库获取群 {group_id} 从 {today_start} 开始的最近 {max_len} 条记录",
+                    command="DB历史",
+                )
+                db_messages = (
+                    await ChatHistory.filter(
+                        group_id=group_id_str, create_time__gte=today_start
+                    )
+                    .order_by("-create_time")
+                    .limit(max_len)
+                    .all()
+                )
+
+                if not db_messages:
+                    logger.warning(
+                        f"数据库中未找到群 {group_id} 今天的聊天记录",
+                        command="DB历史",
+                        group_id=group_id,
+                    )
+                    return [], {}
+
+                formatted_messages: list[dict] = []
+                for msg in reversed(db_messages):
+                    formatted_messages.append(
+                        {
+                            "message_id": msg.id,
+                            "user_id": int(msg.user_id) if msg.user_id.isdigit() else 0,
+                            "time": int(msg.create_time.timestamp()),
+                            "message_type": "group",
+                            "message": [
+                                {
+                                    "type": "text",
+                                    "data": {"text": msg.plain_text or ""},
+                                }
+                            ],
+                            "raw_message": msg.plain_text or "",
+                            "sender": {
+                                "user_id": int(msg.user_id)
+                                if msg.user_id.isdigit()
+                                else 0
+                            },
+                        }
+                    )
+                logger.debug(
+                    f"从数据库成功获取并格式化 {len(formatted_messages)} 条消息 "
+                    f"(使用 plain_text)",
+                    command="DB历史",
+                    group_id=group_id,
+                )
+                logger.warning(
+                    "使用数据库历史记录时，图片、@ 等非文本信息可能无法正确处理。",
+                    command="DB历史",
+                )
+                raw_messages = formatted_messages
+            except Exception as e:
+                logger.error(
+                    f"从数据库获取群 {group_id} 的原始消息历史失败: {e}",
+                    command="DB历史",
+                    group_id=group_id,
+                    e=e,
+                )
+                ex = SummaryException(
+                    message=f"数据库历史记录获取失败: {e!s}",
+                    code=ErrorCode.DB_QUERY_ERROR,
+                    details={"error": str(e), "group_id": group_id, "count": count},
+                    cause=e,
+                )
+                raise ex from e
+        else:
+            if use_db and not ChatHistory:
+                logger.warning(
+                    "配置了使用数据库历史但 ChatHistory 模型导入失败，回退到 API 获取。"
+                )
+
+            logger.debug(
+                f"通过 API 获取群 {group_id} 的最近 {max_len} 条聊天记录用于当天总结",
+                command="API历史",
+            )
+            try:
+
+                @Retry.simple(
+                    stop_max_attempt=summary_config.get_max_retries(),
+                    wait_fixed_seconds=summary_config.get_retry_delay(),
+                    exception=(NetworkError, ActionFailed),
+                )
+                async def fetch_with_retry():
+                    response = await bot.get_group_msg_history(
+                        group_id=group_id, count=max_len
+                    )
+                    raw = response.get("messages", [])
+                    logger.debug(
+                        f"从群 {group_id} API 获取了 {len(raw)} 条原始消息",
+                        command="API历史",
+                        group_id=group_id,
+                    )
+                    return raw
+
+                all_raw_messages = await fetch_with_retry()
+            except Exception as e:
+                logger.error(
+                    f"通过 API 获取群 {group_id} 的原始消息历史失败 (所有重试后): {e}",
+                    command="API历史",
+                    group_id=group_id,
+                    e=e,
+                )
+                ex = SummaryException(
+                    message=f"API 消息历史获取失败: {e!s}",
+                    code=ErrorCode.MESSAGE_FETCH_FAILED,
+                    details={"error": str(e), "group_id": group_id, "count": count},
+                    cause=e,
+                )
+                raise ex from e
+
+            today_start_ts = int(today_start.timestamp())
+            raw_messages = [
+                msg for msg in all_raw_messages if msg.get("time", 0) >= today_start_ts
+            ]
+            logger.info(
+                f"API模式当天总结: 获取 {len(all_raw_messages)} 条消息, "
+                f"筛选后剩余 {len(raw_messages)} 条今日消息",
+                command="API历史",
+            )
+    else:
+        if not isinstance(count, int):
+            logger.error(
+                f"收到无法处理的消息数量参数: {count}",
+                command="get_group_messages",
+                group_id=group_id,
+            )
+            raise SummaryException(
+                message="消息数量参数无效，请提供整数或'当天'。",
+                code=ErrorCode.INVALID_PARAMETER,
+                details={"group_id": group_id, "count": count},
+            )
+
+        if use_db and ChatHistory:
+            logger.debug(
+                f"尝试从数据库获取群 {group_id} 的最近 {count} 条聊天记录",
+                command="DB历史",
+            )
+            try:
+                db_messages = (
+                    await ChatHistory.filter(group_id=group_id_str)
+                    .order_by("-create_time")
+                    .limit(count)
+                    .all()
+                )
+
+                if not db_messages:
+                    logger.warning(
+                        f"数据库中未找到群 {group_id} 的聊天记录",
+                        command="DB历史",
+                        group_id=group_id,
+                    )
+                    return [], {}
+
+                formatted_messages = []
+                for msg in reversed(db_messages):
+                    formatted_messages.append(
+                        {
+                            "message_id": msg.id,
+                            "user_id": int(msg.user_id) if msg.user_id.isdigit() else 0,
+                            "time": int(msg.create_time.timestamp()),
+                            "message_type": "group",
+                            "message": [
+                                {
+                                    "type": "text",
+                                    "data": {"text": msg.plain_text or ""},
+                                }
+                            ],
+                            "raw_message": msg.plain_text or "",
+                            "sender": {
+                                "user_id": int(msg.user_id)
+                                if msg.user_id.isdigit()
+                                else 0
+                            },
+                        }
+                    )
+                logger.debug(
+                    f"从数据库成功获取并格式化 {len(formatted_messages)} 条消息 "
+                    f"(使用 plain_text)",
+                    command="DB历史",
+                    group_id=group_id,
+                )
+                logger.warning(
+                    "使用数据库历史记录时，图片、@ 等非文本信息可能无法正确处理。",
+                    command="DB历史",
+                )
+                raw_messages = formatted_messages
+            except Exception as e:
+                logger.error(
+                    f"从数据库获取群 {group_id} 历史记录失败: {e}",
+                    command="DB历史",
+                    group_id=group_id,
+                    e=e,
+                )
+                ex = SummaryException(
+                    message=f"数据库历史记录获取失败: {e!s}",
+                    code=ErrorCode.DB_QUERY_ERROR,
+                    details={"error": str(e), "group_id": group_id, "count": count},
+                    cause=e,
+                )
+                raise ex from e
+        else:
+            if use_db and not ChatHistory:
+                logger.warning(
+                    "配置了使用数据库历史但 ChatHistory 模型导入失败，回退到 API 获取。"
+                )
+
+            logger.debug(
+                f"通过 API 获取群 {group_id} 的最近 {count} 条聊天记录",
+                command="API历史",
+            )
+            try:
+
+                @Retry.simple(
+                    stop_max_attempt=summary_config.get_max_retries(),
+                    wait_fixed_seconds=summary_config.get_retry_delay(),
+                )
+                async def fetch_with_retry():
+                    response = await bot.get_group_msg_history(
+                        group_id=group_id, count=count
+                    )
+                    raw = response.get("messages", [])
+                    logger.debug(
+                        f"从群 {group_id} API 获取了 {len(raw)} 条原始消息",
+                        command="API历史",
+                        group_id=group_id,
+                    )
+                    return raw
+
+                raw_messages = await fetch_with_retry()
+            except Exception as e:
+                logger.error(
+                    f"通过 API 获取群 {group_id} 的原始消息历史失败 (所有重试后): {e}",
+                    command="API历史",
+                    group_id=group_id,
+                    e=e,
+                )
+                ex = SummaryException(
+                    message=f"API 消息历史获取失败: {e!s}",
+                    code=ErrorCode.MESSAGE_FETCH_FAILED,
+                    details={"error": str(e), "group_id": group_id, "count": count},
+                    cause=e,
+                )
+                raise ex from e
+
+    filtered_messages = raw_messages
+    if target_user_ids:
+        filtered_messages = [
+            msg for msg in raw_messages if str(msg.get("user_id")) in target_user_ids
+        ]
+        logger.debug(
+            f"过滤后剩余 {len(filtered_messages)} 条消息 (来自用户: {target_user_ids})",
+            command="get_group_messages",
+            group_id=group_id,
+        )
+
+    if not filtered_messages:
+        logger.warning(
+            f"群 {group_id} 未返回任何有效消息"
+            f"{'（指定用户）' if target_user_ids else ''}",
+            command="get_group_messages",
+            group_id=group_id,
+        )
+        return [], {}
+
+    try:
+        processed_data, user_info_cache = await process_message(
+            filtered_messages, bot, group_id
+        )
+
+        if cache_ttl > 0 and not target_user_ids and cache_key:
+            _message_cache[cache_key] = (
+                (processed_data, user_info_cache),
+                time.time(),
+            )
+            logger.debug(f"消息已存入缓存 (群: {group_id}, 数量: {count})")
+
+        return processed_data, user_info_cache
+    except Exception as e:
+        logger.error(
+            f"处理群 {group_id} 消息失败: {e}",
+            command="get_group_messages",
+            group_id=group_id,
+            e=e,
+        )
+        ex = SummaryException(
+            message=f"消息处理失败: {e!s}",
+            code=ErrorCode.MESSAGE_PROCESS_FAILED,
+            details={"error": str(e), "group_id": group_id, "count": count},
+            cause=e,
+        )
+        raise ex from e
+
+
+@Retry.api(
+    stop_max_attempt=summary_config.get_user_info_max_retries() + 1,
+    wait_exp_multiplier=summary_config.get_user_info_retry_delay(),
+    log_name="获取用户信息",
+)
+async def _fetch_user_info_with_retry(bot: Bot, user_id_str: str, group_id_str: str):
+    """带重试机制的安全用户信息获取"""
+    user_info_timeout = summary_config.get_user_info_timeout()
+    result = await asyncio.wait_for(
+        PlatformUtils.get_user(bot, user_id_str, group_id_str),
+        timeout=user_info_timeout,
+    )
+    return result
+
+
+async def process_message(
+    messages: list, bot: Bot, group_id: int
+) -> tuple[list[dict[str, str]], dict[str, str]]:
+    logger.debug(
+        f"开始处理群 {group_id} 的 {len(messages)} 条原始消息",
+        command="消息处理",
+        group_id=group_id,
+    )
+    try:
+        if not messages:
+            return [], {}
+
+        exclude_bot = base_config.get("EXCLUDE_BOT_MESSAGES", False)
+        bot_self_id = bot.self_id
+
+        user_ids_to_fetch: set[str] = set()
+        for msg in messages:
+            sender_id = msg.get("user_id")
+            if sender_id:
+                user_ids_to_fetch.add(str(sender_id))
+            raw_segments = msg.get("message", [])
+            for segment in raw_segments:
+                if isinstance(segment, dict):
+                    seg_type = segment.get("type")
+                    seg_data = segment.get("data", {})
+                    if seg_type == "at" and "qq" in seg_data:
+                        user_ids_to_fetch.add(str(seg_data["qq"]))
+
+        user_info_cache: dict[str, str] = {}
+        group_id_str = str(group_id)
+
+        if user_ids_to_fetch:
+            logger.debug(
+                f"需要获取 {len(user_ids_to_fetch)} 个用户的信息: "
+                f"{sorted(user_ids_to_fetch)}",
+                group_id=group_id,
+            )
+
+            concurrent_limit = summary_config.get_concurrent_user_fetch_limit()
+            semaphore = asyncio.Semaphore(concurrent_limit)
+
+            async def get_user_with_sem(user_id: str):
+                async with semaphore:
+                    try:
+                        return user_id, await _fetch_user_info_with_retry(
+                            bot, user_id, group_id_str
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            f"获取用户 {user_id} 信息最终失败: {e}", group_id=group_id
+                        )
+                        return user_id, None
+
+            tasks = [get_user_with_sem(uid) for uid in user_ids_to_fetch]
+            message_timeout = summary_config.get_message_process_timeout()
+
+            try:
+                results = await asyncio.wait_for(
+                    asyncio.gather(*tasks),
+                    timeout=message_timeout,
+                )
+            except asyncio.TimeoutError:
+                logger.warning(
+                    f"批量获取用户信息整体超时 ({message_timeout}s)，将使用默认用户名",
+                    group_id=group_id,
+                )
+                results = []
+
+            for res in results:
+                if res:
+                    user_id_str, user_data = res
+                    fallback_name = f"用户_{user_id_str[-4:]}"
+                    if user_data:
+                        sender_name = user_data.card or user_data.name or fallback_name
+                        user_info_cache[user_id_str] = _truncate_username(sender_name)
+                    else:
+                        user_info_cache[user_id_str] = _truncate_username(fallback_name)
+
+            logger.debug(
+                f"用户信息并发获取完成，缓存了 {len(user_info_cache)} 个用户信息",
+                group_id=group_id,
+            )
+
+        processed_log: list[dict[str, str]] = []
+        for msg in messages:
+            user_id = msg.get("user_id")
+            if not user_id:
+                continue
+
+            user_id_str = str(user_id)
+            if exclude_bot and user_id_str == bot_self_id:
+                continue
+
+            default_name = _truncate_username(f"用户_{user_id_str[-4:]}")
+            sender_name = user_info_cache.get(user_id_str, default_name)
+
+            raw_segments = msg.get("message", [])
+            text_segments: list[str] = []
+
+            for segment in raw_segments:
+                if not isinstance(segment, dict):
+                    continue
+                seg_type = segment.get("type")
+                seg_data = segment.get("data", {})
+                if seg_type == "text" and "text" in seg_data:
+                    text = seg_data["text"].strip()
+                    if text:
+                        text_segments.append(text)
+                elif seg_type == "at" and "qq" in seg_data:
+                    qq = str(seg_data["qq"])
+                    default_at_name = _truncate_username(f"用户_{qq[-4:]}")
+                    at_name = user_info_cache.get(qq, default_at_name)
+                    text_segments.append(f"@{at_name}")
+
+            if text_segments:
+                message_content = "".join(text_segments)
+                processed_log.append({"name": sender_name, "content": message_content})
+
+        logger.debug(
+            f"消息处理完成，生成 {len(processed_log)} 条处理记录 "
+            f"(已应用Bot排除设置: {exclude_bot})",
+            group_id=group_id,
+        )
+        return processed_log, user_info_cache
+
+    except Exception as e:
+        logger.error(
+            f"处理群 {group_id} 消息时出错: {e}",
+            command="消息处理",
+            e=e,
+            group_id=group_id,
+        )
+        ex = SummaryException(
+            message=f"消息处理失败: {e!s}",
+            code=ErrorCode.MESSAGE_PROCESS_FAILED,
+            details={
+                "error": str(e),
+                "group_id": group_id,
+                "message_count": len(messages) if messages else 0,
+            },
+            cause=e,
+        )
+        raise ex from e
+
+
+async def check_message_count(
+    messages: list[dict[str, Any]], min_count: int | None = None
+) -> bool:
+    try:
+        if not messages:
+            return False
+
+        if min_count is None:
+            min_len = base_config.get("SUMMARY_MIN_LENGTH")
+            max_len = base_config.get("SUMMARY_MAX_LENGTH")
+
+            if min_len is None or max_len is None:
+                logger.warning(
+                    "无法从配置获取 SUMMARY_MIN/MAX_LENGTH，使用默认检查值 (50)"
+                )
+                min_count = 50
+            else:
+                try:
+                    min_count = min(int(min_len), int(max_len))
+                except (ValueError, TypeError):
+                    logger.warning(
+                        "配置 SUMMARY_MIN/MAX_LENGTH 值无效，使用默认检查值 (50)"
+                    )
+                    min_count = 50
+
+        return len(messages) >= min_count
+    except Exception as e:
+        logger.error(f"检查消息数量时出错: {e}", command="check_message_count", e=e)
+        return False
+
+
+class AvatarEnhancer:
+    """头像增强器，为总结内容中的用户名添加头像"""
+
+    def __init__(self):
+        self.avatar_cache: dict[str, str | None] = {}
+
+    async def enhance_summary_with_avatars(
+        self, summary_text: str, user_info_cache: dict[str, str]
+    ) -> None:
+        """
+        在总结文本中为用户名添加头像或高亮。
+        此方法现在只负责准备头像数据，不再返回增强后的文本。
+        """
+        try:
+            name_to_id = {name: uid for uid, name in user_info_cache.items()}
+            mentioned_users = self._find_mentioned_users(summary_text, name_to_id)
+
+            if not mentioned_users:
+                logger.debug("总结中未发现提及的用户，跳过头像数据准备。")
+                return
+
+            use_avatars = base_config.get("ENABLE_AVATAR_ENHANCEMENT", True)
+            if not use_avatars:
+                return
+
+            async def _get_and_cache(uid: str):
+                path = await avatar_service.get_avatar_path(
+                    platform="qq", identifier=uid
+                )
+                self.avatar_cache[uid] = str(path) if path else None
+
+            tasks = [_get_and_cache(uid) for uid in mentioned_users]
+            await asyncio.gather(*tasks, return_exceptions=True)
+            logger.debug(f"头像数据准备完成，共处理 {len(mentioned_users)} 个用户。")
+
+        except Exception as e:
+            logger.warning(f"准备头像数据时失败: {e}")
+
+    def _get_all_valid_mentions(
+        self, text: str, name_to_id: dict[str, str]
+    ) -> list[tuple[re.Match, str, str]]:
+        """
+        [新增] 统一的核心用户识别函数。
+        使用强大的正则表达式和启发式规则，返回所有有效提及的详细信息。
+        返回: 列表，每个元素为 (匹配对象, 用户ID, 用户名)
+        """
+        valid_mentions: list[tuple[re.Match, str, str]] = []
+        all_user_names = sorted(name_to_id.keys(), key=len, reverse=True)
+        if not all_user_names:
+            return []
+
+        pattern = re.compile(
+            r"(?<!\w)(@?)(" + "|".join(map(re.escape, all_user_names)) + r")(?!\w)"
+        )
+
+        for match in pattern.finditer(text):
+            user_name = match.group(2)
+            user_id = name_to_id.get(user_name)
+
+            if user_id and self._is_likely_a_user_mention(match, text, user_name):
+                valid_mentions.append((match, user_id, user_name))
+
+        return valid_mentions
+
+    def _find_mentioned_users(
+        self, text: str, name_to_id: dict[str, str]
+    ) -> dict[str, str]:
+        """
+        [重构] 查找文本中提及的用户。现在调用统一的核心识别函数。
+        """
+        mentioned: dict[str, str] = {}
+        valid_mentions = self._get_all_valid_mentions(text, name_to_id)
+
+        for _, user_id, user_name in valid_mentions:
+            if user_id not in mentioned:
+                mentioned[user_id] = user_name
+                logger.debug(f"发现提及用户: {user_name} (ID: {user_id})")
+
+        return mentioned
+
+    def _should_skip_username(self, user_name: str) -> bool:
+        """判断是否应该跳过处理该用户名"""
+        if len(user_name) == 1:
+            special_chars = set(".,;:!?@#$%^&*()[]{}|\\/<>-_=+`~\"' ")
+            if user_name in special_chars:
+                return True
+
+        return False
+
+    def _create_user_with_avatar_html(
+        self, user_name: str, avatar_file_path: str
+    ) -> str:
+        """创建带头像的用户名HTML"""
+        escaped_name = (
+            user_name.replace('"', "&quot;").replace("<", "&lt;").replace(">", "&gt;")
+        )
+        abs_path = Path(avatar_file_path).resolve()
+        file_url = abs_path.as_uri()
+        return (
+            f'<span class="user-mention with-avatar">'
+            f'<img src="{file_url}" alt="{escaped_name}" class="user-avatar" />'
+            f'<span class="user-name">{escaped_name}</span>'
+            f"</span>"
+        )
+
+    def _create_user_mention_html(self, user_name: str) -> str:
+        """创建仅高亮的用户名HTML"""
+        escaped_name = (
+            user_name.replace('"', "&quot;").replace("<", "&lt;").replace(">", "&gt;")
+        )
+        return f'<span class="user-mention">{escaped_name}</span>'
+
+    def _create_user_without_avatar_html(self, user_name: str) -> str:
+        """创建无头像的用户名HTML"""
+        escaped_name = (
+            user_name.replace('"', "&quot;").replace("<", "&lt;").replace(">", "&gt;")
+        )
+        return f'<span class="user-mention no-avatar">{escaped_name}</span>'
+
+    def clear_cache(self):
+        """清空头像缓存"""
+        self.avatar_cache.clear()
+        logger.debug("头像缓存已清空")
+
+    def enhance_html_with_markup(
+        self,
+        html_content: str,
+        user_info_cache: dict[str, str],
+        mode: str,
+    ) -> str:
+        """[重构] 使用统一的核心识别函数来增强HTML"""
+        try:
+            from bs4 import BeautifulSoup
+
+            soup = BeautifulSoup(html_content, "lxml")
+            name_to_id = {name: uid for uid, name in user_info_cache.items()}
+
+            text_nodes = soup.find_all(string=True)
+
+            for node in text_nodes:
+                if node.parent and node.parent.name in ["script", "style", "a"]:
+                    continue
+
+                original_text = str(node)
+
+                valid_mentions = self._get_all_valid_mentions(original_text, name_to_id)
+                if not valid_mentions:
+                    continue
+
+                new_parts = []
+                last_index = 0
+                for match, user_id, user_name in valid_mentions:
+                    new_parts.append(original_text[last_index : match.start()])
+
+                    replacement_html = ""
+                    if mode == "avatar":
+                        avatar_path = self.avatar_cache.get(user_id)
+                        if avatar_path and Path(avatar_path).exists():
+                            replacement_html = self._create_user_with_avatar_html(
+                                user_name, avatar_path
+                            )
+                        else:
+                            replacement_html = self._create_user_without_avatar_html(
+                                user_name
+                            )
+                    else:
+                        replacement_html = self._create_user_mention_html(user_name)
+
+                    new_parts.append(replacement_html)
+                    last_index = match.end()
+
+                new_parts.append(original_text[last_index:])
+
+                new_html_str = "".join(new_parts)
+                if new_html_str != original_text:
+                    new_soup = BeautifulSoup(new_html_str, "html.parser")
+                    node.replace_with(*new_soup.contents)
+
+            return str(soup)
+
+        except Exception as e:
+            logger.warning(f"在HTML中增强用户名时失败，将返回原始HTML: {e}", e=e)
+            return html_content
+
+    def _is_likely_a_user_mention(
+        self, match: re.Match, full_text: str, user_name: str
+    ) -> bool:
+        """
+        [重构] 更精细的启发式规则，用于判断一个匹配到的字符串是否真的是一个用户名。
+        """
+        if match.group(1) or (
+            match.end() < len(full_text) and full_text[match.end()] in (":", "：")
+        ):
+            return True
+
+        exclusion_patterns = [f"吃{user_name}", f"是{user_name}", f"的{user_name}"]
+        context_window = full_text[
+            max(0, match.start() - 2) : min(len(full_text), match.end() + 2)
+        ]
+        if any(p in context_window for p in exclusion_patterns):
+            logger.debug(f"跳过对 '{user_name}' 的替换，因为它出现在排除模式中。")
+            return False
+
+        if len(user_name) >= 4:
+            return True
+        if len(user_name) == 1:
+            logger.debug(f"跳过对单字符名称 '{user_name}' 的替换，风险太高。")
+            return False
+
+        return True
+
+
+avatar_enhancer = AvatarEnhancer()

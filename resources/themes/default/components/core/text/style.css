@@ -1,0 +1,30 @@
+.text-wrapper {
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--color-text-dark);
+    padding: 10px;
+}
+.text-wrapper.align-left { text-align: left; }
+.text-wrapper.align-center { text-align: center; }
+.text-wrapper.align-right { text-align: right; }
+.text-span.bold {
+    font-weight: bold;
+}
+.text-span.italic {
+    font-style: italic;
+}
+.text-span.underline {
+    text-decoration: underline;
+}
+.text-span.strikethrough {
+    text-decoration: line-through;
+}
+.text-span.code {
+    font-family: monospace;
+    background-color: var(--color-background-card);
+    padding: 0.2em 0.4em;
+    margin: 0;
+    font-size: 85%;
+    border-radius: 6px;
+    border: 1px solid var(--color-border-light);
+}

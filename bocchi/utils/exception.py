@@ -32,7 +32,7 @@ class NotFoundError(Exception):
     pass
 
 
-class GroupInfoNotFound(Exception):
+class GroupConsoleNotFound(Exception):
     """
     群组未找到
     """

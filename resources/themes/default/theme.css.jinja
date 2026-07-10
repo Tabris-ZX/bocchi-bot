@@ -1,0 +1,49 @@
+/*
+ * ===================================================================
+ * Base Styles - Assembled by Jinja2
+ * ===================================================================
+ */
+@layer reset, base, components, utilities;
+/* Import CSS Variables */
+@layer base {
+    {% include 'assets/css/base/_variables.css.jinja' %}
+    {% include 'assets/css/base/_fonts.css' %}
+
+    :root {
+        /* --- Scheme C: Design Tokens --- */
+
+        /* Spacing */
+        {% for key, val in theme.palette.spacing.items() %}
+        --space-{{ key }}: {{ val }};
+        {% endfor %}
+
+        /* Radius */
+        {% for key, val in theme.palette.radius.items() %}
+        --radius-{{ key }}: {{ val }};
+        {% endfor %}
+
+        /* Typography */
+        --font-main: {{ theme.palette.typography.font_family_main }};
+        --font-header: {{ theme.palette.typography.font_family_header }};
+        {% for key, val in theme.palette.typography.sizes.items() %}
+        --text-{{ key }}: {{ val }};
+        {% endfor %}
+
+        /* Shadows */
+        {% for key, val in theme.palette.shadows.items() %}
+        --shadow-{{ key }}: {{ val }};
+        {% endfor %}
+    }
+}
+@layer reset {
+    /* Import Resets and Global Styles */
+    {% include 'assets/css/base/_reset.css' %}
+}
+/*
+ * ===================================================================
+ * Utility Classes
+ * ===================================================================
+ */
+@layer utilities {
+    {% include 'assets/css/base/_utilities.css.jinja' %}
+}

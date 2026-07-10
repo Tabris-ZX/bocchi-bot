@@ -1,81 +1,92 @@
-[tool.poetry]
-name = "bocchi_bot"
-version = "0.2.4"
-description = "基于 Nonebot2 和 go-cqhttp 开发，以 postgresql 作为数据库，非常可爱的后藤一里bot"
-authors = ["Tabris_ZX <3146463122@qq.com>"]
-license = "AGPL"
-package-mode = false
+[project]
+name = "bocchi-bot"
+version = "0.3.20"
+description = "基于 Nonebot2 和 napcat 开发,sqlite为数据库"
+authors = [{ name = "HibiKier", email = "775757368@qq.com" }]
+license = { text = "AGPL-3.0" }
+requires-python = ">=3.10"
+dependencies = [
+    "playwright==1.57.0",
+    "nonebot-adapter-onebot>=2.3.1",
+    "nonebot-plugin-apscheduler>=0.5",
+    "tortoise-orm>=0.20.0,<0.21.0",
+    "cattrs>=23.2.3,<24.0.0",
+    "ruamel-yaml>=0.18.5",
+    "strenum>=0.4.15,<0.5.0",
+    "nonebot-plugin-session>=0.3.2",
+    "ujson>=5.9.0",
+    "nb-cli>=1.3.0",
+    "nonebot2[fastapi]>=2.3.3",
+    "pillow>=10.0.0,<11.0.0",
+    "retrying>=1.3.4,<2.0.0",
+    "aiofiles>=23.2.1",
+    "nonebot-plugin-htmlrender>=0.6.0,<1.0.0",
+    "pypinyin>=0.51.0",
+    "beautifulsoup4>=4.12.3,<5.0.0",
+    "lxml>=5.1.0,<6.0.0",
+    "psutil>=5.9.8,<6.0.0",
+    "feedparser>=6.0.11,<7.0.0",
+    "imagehash>=4.3.1,<5.0.0",
+    "numpy>=1.26,<2.3",
+    "cn2an>=0.5.22,<0.6.0",
+    "dateparser>=1.2.0,<2.0.0",
+    "python-jose[cryptography]>=3.3.0,<4.0.0",
+    "python-multipart>=0.0.9,<0.1.0",
+    "aiocache[redis]>=0.12.3",
+    "asyncpg>=0.20.0",
+    "redis>=5",
+    "py-cpuinfo>=9.0.0,<10.0.0",
+    "nonebot-plugin-alconna>=0.56.0",
+    "tenacity>=9.0.0,<10.0.0",
+    "nonebot-plugin-uninfo>=0.7.3",
+    "nonebot-plugin-waiter>=0.8.1",
+    "multidict>=6.0.0,!=6.3.2",
+    "json-repair>=0.54.0,<0.55.0",
+    "uvloop>=0.21.0; sys_platform != 'win32'",
+    "pytest-timeout>=2.4.0",
+    "aiomysql>=0.3.2",
+    "mcp>=1.8.0",
+    "jieba>=0.42.1",
+    "aiodocker>=0.24.0",
+    "tomli>=2.4.1",
+    "nonebot-plugin-localstore>=0.7.4",
+    "cachetools>=7.1.4",
+    "nonebot-plugin-orm>=0.8.3",
+    "curl-cffi>=0.15.0",
+    "msgspec>=0.21.1",
+    "meme-generator>=0.2.3",
+    "bilibili-api>=4.1.0",
+    "filetype>=1.2.0",
+    "bilibili-api-python>=17.4.2",
+    "drissionpage>=4.1.1.4",
+    "google>=3.0.0",
+    "spacy-pkuseg>=1.0.1",
+    "protobuf>=7.35.1",
+]
 
-[[tool.poetry.source]]
+[project.scripts]
+zx = "bocchi.cli:main"
+
+[dependency-groups]
+dev = [
+    "nonebug>=0.4,<0.5",
+    "pytest-cov>=5.0.0,<6.0.0",
+    "pytest-mock>=3.6.1,<4.0.0",
+    "pytest-asyncio>=0.25,<0.26",
+    "pytest-xdist>=3.3.1,<4.0.0",
+    "respx>=0.21.1,<0.22.0",
+    "ruff>=0.8.0,<0.9.0",
+    "pre-commit>=4.0.0,<5.0.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["bocchi"]
+
+[tool.uv]
+
+[[tool.uv.index]]
 name = "aliyun"
-url = "https://pypi.tuna.tsinghua.edu.cn/simple"
-priority = "primary"
-
-[tool.poetry.dependencies]
-python = "^3.10"
-playwright = "^1.41.1"
-nonebot-adapter-onebot = "^2.3.1"
-nonebot-plugin-apscheduler = "^0.5"
-tortoise-orm = "^0.20.0"
-cattrs = "^23.2.3"
-ruamel-yaml = "^0.18.5"
-strenum = "^0.4.15"
-nonebot-plugin-session = "^0.2.3"
-ujson = "^5.9.0"
-nb-cli = "^1.3.0"
-nonebot2 = { extras = ["fastapi"], version = "^2.3.3" }
-pillow = "^9.5.0"
-retrying = "^1.3.4"
-aiofiles = "^23.2.1"
-nonebot-plugin-htmlrender = "^0.6.7"
-pypinyin = "^0.51.0"
-beautifulsoup4 = "^4.9.3"
-lxml = "^4.6.5"
-psutil = "^5.9.8"
-feedparser = "^6.0.11"
-imagehash = "^4.3.1"
-cn2an = "^0.5.22"
-dateparser = "^1.2.0"
-bilireq = "0.2.3post0"
-python-jose = { extras = ["cryptography"], version = "^3.3.0" }
-python-multipart = "^0.0.9"
-aiocache = {extras = ["redis"], version = "^0.12.3"}
-py-cpuinfo = "^9.0.0"
-nonebot-plugin-alconna = "^0.54.0"
-tenacity = "^9.0.0"
-nonebot-plugin-uninfo = ">0.4.1"
-nonebot-plugin-waiter = "^0.8.1"
-multidict = ">=6.0.0,!=6.3.2"
-
-redis = { version = ">=5", optional = true }
-alibabacloud-devops20210625 = "^5.0.2"
-nonebot-plugin-imageutils = "^0.1.17"
-nonebot-plugin-matchreminder = "^1.0.4"
-jwt = "^1.4.0"
-curl-cffi = "^0.13.0"
-asyncpg = "^0.30.0"
-tqdm = "^4.67.1"
-bilibili-api-python = "^17.4.1"
-yt-dlp = "^2026.2.4"
-nonebot-plugin-localstore = "^0.7.4"
-nonebot-plugin-orm = "^0.8.3"
-meme-generator = "^0.2.3"
-filetype = "^1.2.0"
-zai-sdk = "^0.2.2"
-
-[tool.poetry.group.dev.dependencies]
-nonebug = "^0.4"
-pytest-cov = "^5.0.0"
-pytest-mock = "^3.6.1"
-pytest-asyncio = "^0.25"
-pytest-xdist = "^3.3.1"
-respx = "^0.21.1"
-ruff = "^0.8.0"
-pre-commit = "^4.0.0"
-
-[tool.poetry.extras]
-redis = ["redis"]
-postgresql = ["asyncpg"]
+url = "https://mirrors.aliyun.com/pypi/simple/"
 
 [tool.nonebot]
 plugins = [
@@ -83,11 +94,12 @@ plugins = [
     "nonebot_plugin_session",
     "nonebot_plugin_htmlrender",
     "nonebot_plugin_alconna",
-    "nonebot_plugin_localstore"
 ]
 plugin_dirs = ["bocchi/services", "bocchi/builtin_plugins", "bocchi/plugins"]
 adapters = [
     { name = "OneBot V11", module_name = "nonebot.adapters.onebot.v11" },
+    #    { name = "DoDo", module_name = "nonebot.adapters.dodo" },
+    #    { name = "开黑啦", module_name = "nonebot.adapters.kaiheila" },
 ]
 
 [tool.ruff]
@@ -148,12 +160,14 @@ executionEnvironments = [
 
 typeCheckingMode = "standard"
 reportShadowedImports = false
+reportMissingImports = "none"
 disableBytesTypePromotions = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
+timeout = 120
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"

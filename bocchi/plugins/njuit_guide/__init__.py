@@ -37,23 +37,21 @@ __plugin_meta__ = PluginMetadata(
     南工新生: 获取新生指南pdf
     南工地图: 南工院彩绘地图
     南工宿舍/宿舍号码:获取宿舍电费充值号码(id)
-    今日校果 ?[帖子数=10] ?[评论数=10]: 查询最新n条校果论坛帖子
-    校果热榜: 查询校果论坛热榜帖子
-    账号绑定 ?dorm [宿舍号] ?class [班级名]: 绑定qq账户和你的宿舍/班级
-    (建议私聊小波奇绑定以保护隐私) 
+    (暂时移除)今日校果 ?[帖子数=10] ?[评论数=10]: 查询最新n条校果论坛帖子
+    (暂时移除)校果热榜: 查询校果论坛热榜帖子
+    南工绑定/绑定南工 ?dorm [宿舍号] ?class [班级名]: 私聊绑定qq账户和你的宿舍/班级
     电费查询: 查询已绑定宿舍的电费余额
-    电费推送 开/关: 开启或关闭每日早上8点电费余额推送
+    电费推送 开/关: 开启/关闭每日电费推送和预警邮件
     
     示例: 
-    今日校果 5
-    账号绑定 dorm 123456
+    南工绑定 dorm 114514
+    南工绑定 class 班级1919
     电费推送 开
 
-    还要做什么功能可以和作者提建议...
     """.strip(),
     extra=PluginExtraData(
-        author="Tabris_ZX",
-        version="0.5.1",
+        author="Tabris-ZX",
+        version="0.5.2",
         tasks=[
             Task(module="today_xiaoguo", name="今日校果"), 
             Task(module="today_bill_push", name="今日电费提醒")
@@ -82,10 +80,11 @@ dorm_id_matcher = on_alconna(
 )
 bind_matcher = on_alconna(
     Alconna(
-        "账号绑定",
+        "南工绑定",
         Option("class", Args["class_name", str, ""]),
         Option("dorm", Args["dorm_id", str, ""]),
     ),
+    aliases={"绑定南工"},
     priority=5,
     block=True,
 )
@@ -169,8 +168,7 @@ async def handle_bind(session: Uninfo, class_name: str = "", dorm_id: str = ""):
             "请提供班级或宿舍信息！\n使用教程:请发送'波奇帮助91'"
         ).send(reply_to=True)
         return
-
-    # 仅使用 user_id 进行绑定
+    
     bind = await Electricity.bind_info(
         user_id=session.user.id, class_name=class_name, dorm_id=dorm_id
     )
@@ -178,9 +176,9 @@ async def handle_bind(session: Uninfo, class_name: str = "", dorm_id: str = ""):
         f"绑定结果: 用户ID: {session.user.id}, 班级: {class_name}, 宿舍: {dorm_id}"
     )
     if bind:
-        await MessageUtils.build_message("✅ 绑定成功！(电费推送默认开启)").send(reply_to=True)
+        await MessageUtils.build_message("✅ 绑定成功！(宿舍绑定后,电费推送自动开启)").send(reply_to=True)
     else:
-        await MessageUtils.build_message("❌ 绑定失败,肯定不是波奇的问题!").send(reply_to=True)
+        await MessageUtils.build_message("❌ 绑定失败,可能是宿舍或是班级写错了或者学校网络炸了,但肯定不是波奇的问题!").send(reply_to=True)
 
 
 @query_matcher.handle()
@@ -263,7 +261,7 @@ async def push_check(bot: Bot, group_id: str) -> bool:
 
 @scheduler.scheduled_job(
     "cron",
-    hour=8,
+    hour=21,
     minute=0,
 )
 async def send_daily_electricity_reminder():

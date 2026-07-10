@@ -1,49 +1,75 @@
-"""
-核心模型模块
-包含基础的数据模型类
-"""
-
 from .base import RenderableComponent
-from .layout import LayoutData, LayoutItem
-from .markdown import (
+from .containers import (
+    CardData,
+    LayoutData,
+    LayoutItem,
+    ListData,
+    ListItem,
+    NotebookData,
+    NotebookElement,
+    TemplateComponent,
+)
+from .content import (
+    BaseCell,
     CodeElement,
+    ComponentCell,
+    ComponentElement,
+    DetailsData,
+    DetailsItem,
     HeadingElement,
+    ImageCell,
     ImageElement,
     ListElement,
     ListItemElement,
     MarkdownData,
     MarkdownElement,
+    ProgressBarCell,
     QuoteElement,
     RawHtmlElement,
+    RichTextCell,
+    StatusBadgeCell,
+    TableCell,
+    TableData,
     TableElement,
+    TextCell,
+    TextData,
     TextElement,
+    TextSpan,
 )
-from .notebook import NotebookData, NotebookElement
-from .table import BaseCell, ImageCell, StatusBadgeCell, TableCell, TableData, TextCell
-from .template import TemplateComponent
 
 __all__ = [
     "BaseCell",
+    "CardData",
     "CodeElement",
+    "ComponentCell",
+    "ComponentElement",
+    "DetailsData",
+    "DetailsItem",
     "HeadingElement",
     "ImageCell",
     "ImageElement",
     "LayoutData",
     "LayoutItem",
+    "ListData",
     "ListElement",
+    "ListItem",
     "ListItemElement",
     "MarkdownData",
     "MarkdownElement",
     "NotebookData",
     "NotebookElement",
+    "ProgressBarCell",
     "QuoteElement",
     "RawHtmlElement",
     "RenderableComponent",
+    "RichTextCell",
     "StatusBadgeCell",
     "TableCell",
     "TableData",
     "TableElement",
     "TemplateComponent",
     "TextCell",
+    "TextData",
     "TextElement",
+    "TextSpan",
 ]

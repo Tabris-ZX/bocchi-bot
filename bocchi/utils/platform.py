@@ -1,5 +1,6 @@
 import asyncio
 from collections.abc import Awaitable, Callable
+import contextlib
 import random
 from typing import cast
 
@@ -24,6 +25,36 @@ from bocchi.utils.message import MessageUtils
 driver = nonebot.get_driver()
 
 
+def _adapter_name(bot: Bot) -> str:
+    adapter = getattr(bot, "adapter", None)
+    if adapter is None:
+        return ""
+    get_name = getattr(adapter, "get_name", None)
+    if callable(get_name):
+        try:
+            return str(get_name()).lower()
+        except Exception:
+            return ""
+    return adapter.__class__.__name__.lower()
+
+
+def _scope_name(scope: object) -> str:
+    """Normalize uninfo/alconna scope values without changing legacy platform."""
+    if scope is None:
+        return ""
+    raw = getattr(scope, "name", None) or getattr(scope, "value", scope)
+    text = str(raw or "").strip().lower()
+    if not text:
+        text = str(getattr(scope, "name", "") or "").strip().lower()
+    text = text.replace("-", "_").replace(" ", "_")
+    compact = "".join(ch for ch in text if ch.isalnum())
+    if compact.endswith("qqclient"):
+        return "qq_client"
+    if compact.endswith("qqapi"):
+        return "qq_api"
+    return text
+
+
 class UserData(BaseModel):
     name: str
     """昵称"""
@@ -45,6 +76,71 @@ class UserData(BaseModel):
 
 class PlatformUtils:
     @classmethod
+    def _resolve_unique_qq_client_bot(cls, log_cmd: str | None = None) -> Bot | None:
+        bots = list(nonebot.get_bots().values())
+        if not bots:
+            logger.warning("当前没有可用的 OneBot 协议端 Bot，已跳过。", log_cmd)
+            return None
+        qq_client_bots = [
+            bot for bot in bots if cls.get_platform_scope(bot) == "qq_client"
+        ]
+        if len(qq_client_bots) == 1:
+            bot = qq_client_bots[0]
+            if len(bots) > 1:
+                logger.warning(
+                    f"多 Bot 在线且未指定 Bot，自动选择 OneBot {bot.self_id}。",
+                    log_cmd,
+                )
+            return bot
+        if not qq_client_bots:
+            logger.warning("未找到 OneBot 协议端 Bot，已跳过。", log_cmd)
+        else:
+            logger.warning(
+                "存在多个 OneBot 协议端 Bot，无法安全选择，已跳过。", log_cmd
+            )
+        return None
+
+    @classmethod
+    def resolve_bot(
+        cls,
+        bot_id: str | None = None,
+        platform_scope: str | None = None,
+        log_cmd: str | None = None,
+    ) -> Bot | None:
+        """Resolve a bot without randomly selecting the QQ official adapter.
+
+        Background jobs that require OneBot APIs should pass
+        ``platform_scope="qq_client"``.  When no scope is supplied and multiple
+        bots are online, a single OneBot client is preferred; otherwise the
+        ambiguous selection is skipped.
+        """
+        if bot_id:
+            try:
+                bot = nonebot.get_bot(bot_id)
+            except KeyError:
+                logger.warning(f"Bot:{bot_id} 对象未连接或不存在", log_cmd)
+                return None
+            if platform_scope and cls.get_platform_scope(bot) != platform_scope:
+                logger.warning(f"Bot:{bot_id} 平台作用域不匹配，已跳过。", log_cmd)
+                return None
+            return bot
+
+        bots = list(nonebot.get_bots().values())
+        if platform_scope:
+            bots = [
+                bot for bot in bots if cls.get_platform_scope(bot) == platform_scope
+            ]
+        if not bots:
+            logger.warning("当前没有匹配的 Bot，已跳过。", log_cmd)
+            return None
+        if len(bots) == 1:
+            return bots[0]
+        if platform_scope is None:
+            return cls._resolve_unique_qq_client_bot(log_cmd)
+        logger.warning("存在多个匹配的 Bot，无法安全选择，已跳过。", log_cmd)
+        return None
+
+    @classmethod
     def is_qbot(cls, session: Uninfo | Bot) -> bool:
         """判断bot是否为qq官bot
 
@@ -55,7 +151,11 @@ class PlatformUtils:
             bool: 是否为官bot
         """
         if isinstance(session, Bot):
+            if cls.get_platform_scope(session) == "qq_api":
+                return True
             return bool(BotConfig.get_qbot_uid(session.self_id))
+        if cls.get_platform_scope(session) == "qq_api":
+            return True
         if BotConfig.get_qbot_uid(session.self_id):
             return True
         return session.scope == SupportScope.qq_api
@@ -70,7 +170,7 @@ class PlatformUtils:
             group_id: 群组id
             duration: 禁言时长(分钟)
         """
-        if cls.get_platform(bot) == "qq":
+        if cls.get_platform_scope(bot) == "qq_client":
             await bot.set_group_ban(
                 group_id=int(group_id),
                 user_id=int(user_id),
@@ -98,7 +198,9 @@ class PlatformUtils:
             Receipt | None: Receipt
         """
         if not bot:
-            bot = nonebot.get_bot()
+            bot = cls._resolve_unique_qq_client_bot("PlatformUtils:send_superuser")
+            if bot is None:
+                return []
         superuser_ids = []
         if superuser_id:
             superuser_ids.append(superuser_id)
@@ -247,7 +349,7 @@ class PlatformUtils:
         if platform != "qq":
             return None
         if user_id.isdigit():
-            return f"http://q1.qlogo.cn/g?b=qq&nk={user_id}&s=160"
+            return f"http://q1.qlogo.cn/g?b=qq&nk={user_id}&s=640"
         else:
             return f"https://q.qlogo.cn/qqapp/{appid}/{user_id}/640"
 
@@ -339,6 +441,21 @@ class PlatformUtils:
                     update_list.append(_group)
         if create_list:
             await GroupConsole.bulk_create(create_list, 10)
+            task_modules = await GroupConsole._get_task_modules(default_status=False)
+            plugin_modules = await GroupConsole._get_plugin_modules(
+                default_status=False
+            )
+            new_ids = [g.group_id for g in create_list]
+            fresh = await GroupConsole.filter(group_id__in=new_ids).all()
+            if task_modules or plugin_modules:
+                for group in fresh:
+                    await GroupConsole._update_modules(
+                        group, task_modules, plugin_modules
+                    )
+            from bocchi.services.cache.runtime_cache import GroupMemoryCache
+
+            for group in fresh:
+                await GroupMemoryCache.upsert_from_model(group)
         if group_list:
             await GroupConsole.bulk_update(
                 update_list, ["group_name", "max_member_count", "member_count"], 10
@@ -360,10 +477,55 @@ class PlatformUtils:
                 info = interface.basic_info()
                 platform = info["scope"].lower()
                 return "qq" if platform.startswith("qq") else platform
+            adapter_name = _adapter_name(t)
+            if "onebot" in adapter_name or adapter_name == "qq":
+                return "qq"
+            return adapter_name or "unknown"
         else:
             platform = t.basic["scope"].lower()
             return "qq" if platform.startswith("qq") else platform
-        return "unknown"
+
+    @classmethod
+    def get_platform_scope(cls, t: Bot | Uninfo | object) -> str:
+        """获取细粒度平台作用域，不改变旧 get_platform 返回值。"""
+        if isinstance(t, Bot):
+            if interface := get_interface(t):
+                with contextlib.suppress(Exception):
+                    scope = _scope_name(interface.basic_info().get("scope"))
+                    if scope:
+                        return scope
+            adapter_name = _adapter_name(t)
+            if "onebot" in adapter_name:
+                return "qq_client"
+            if adapter_name == "qq" or "qq" in adapter_name:
+                return "qq_api"
+            if BotConfig.get_qbot_uid(t.self_id):
+                return "qq_api"
+            return adapter_name or cls.get_platform(t)
+
+        scope = _scope_name(getattr(t, "scope", "") or "")
+        if not scope:
+            basic = getattr(t, "basic", None)
+            if isinstance(basic, dict):
+                scope = _scope_name(basic.get("scope"))
+        if scope:
+            return scope
+
+        adapter = getattr(t, "adapter", None)
+        if adapter is not None:
+            name = (
+                adapter.get_name().lower()
+                if callable(getattr(adapter, "get_name", None))
+                else adapter.__class__.__name__.lower()
+            )
+            if "onebot" in name:
+                return "qq_client"
+            if name == "qq" or "qq" in name:
+                return "qq_api"
+            return name
+
+        platform = str(getattr(t, "platform", "") or "").lower()
+        return "qq_client" if platform == "qq" else platform or "unknown"
 
     @classmethod
     def is_forward_merge_supported(cls, t: Bot | Uninfo) -> bool:
@@ -430,6 +592,9 @@ class PlatformUtils:
         返回:
             int: 更新个数
         """
+        if cls.get_platform_scope(bot) == "qq_api":
+            logger.warning("QQ 官方适配器不支持旧好友同步，已跳过。", "更新好友信息")
+            return 0
         create_list = []
         friend_list, platform = await cls.get_friend_list(bot)
         if friend_list:
@@ -452,6 +617,11 @@ class PlatformUtils:
         返回:
             list[FriendUser]: 好友列表
         """
+        if cls.get_platform_scope(bot) == "qq_api":
+            logger.warning(
+                "QQ 官方适配器不支持旧好友列表查询，已返回空列表。", "好友列表"
+            )
+            return [], cls.get_platform(bot)
         if interface := get_interface(bot):
             user_list = await interface.get_users()
             return [
@@ -533,14 +703,9 @@ class BroadcastEngine:
                 except KeyError:
                     logger.warning(f"Bot:{i} 对象未连接或不存在", log_cmd)
         if not self.bot_list:
-            try:
-                bot = nonebot.get_bot()
+            bot = PlatformUtils._resolve_unique_qq_client_bot(log_cmd)
+            if bot is not None:
                 self.bot_list.append(bot)
-                logger.warning(
-                    f"广播任务未传入Bot对象，使用默认Bot {bot.self_id}", log_cmd
-                )
-            except Exception as e:
-                raise ValueError("当前没有可用的Bot对象...", log_cmd) from e
 
     async def call_check(self, bot: Bot, group_id: str) -> bool:
         """运行发送检测函数

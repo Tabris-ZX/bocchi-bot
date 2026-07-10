@@ -1,0 +1,19 @@
+{% from 'partials/_component_macros.jinja' import wrapper %}
+{% set base_classes = 'text-wrapper align-' + data.align %}
+{% call wrapper(data, base_classes) %}
+    {% for span in data.spans %}
+        {% set classes = ['text-span'] %}
+        {% if span.bold %}{% set _ = classes.append('bold') %}{% endif %}
+        {% if span.italic %}{% set _ = classes.append('italic') %}{% endif %}
+        {% if span.underline %}{% set _ = classes.append('underline') %}{% endif %}
+        {% if span.strikethrough %}{% set _ = classes.append('strikethrough') %}{% endif %}
+        {% if span.code %}{% set _ = classes.append('code') %}{% endif %}
+
+        {% set styles = [] %}
+        {% if span.color %}{% set _ = styles.append('color: ' ~ span.color) %}{% endif %}
+        {% if span.font_size %}{% set _ = styles.append('font-size: ' ~ span.font_size) %}{% endif %}
+        {% if span.font_family %}{% set _ = styles.append('font-family: ' ~ span.font_family) %}{% endif %}
+
+        <span class="{{ classes | join(' ') }}" style="{{ styles | join('; ') }}">{{ span.text }}</span>
+    {% endfor %}
+{% endcall %}

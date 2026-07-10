@@ -16,7 +16,7 @@ from bocchi.utils.platform import PlatformUtils
 
 from ....base_model import Result
 from ....config import QueryDateType
-from ....utils import authentication, clear_help_image, get_system_status
+from ....utils import DB_BUSY_MESSAGE, authentication, get_system_status
 from .data_source import ApiDataSource
 from .model import (
     ActiveGroup,
@@ -34,6 +34,31 @@ run_time = time.time()
 
 ws_router = APIRouter()
 router = APIRouter(prefix="/main")
+_SYSTEM_STATUS_CONNECTIONS: set[WebSocket] = set()
+_SYSTEM_STATUS_STOPPING = False
+
+
+async def _close_system_status_websocket(websocket: WebSocket) -> None:
+    with contextlib.suppress(Exception):
+        if websocket.client_state == WebSocketState.CONNECTED:
+            await asyncio.wait_for(
+                websocket.close(code=1001, reason="server shutdown"),
+                timeout=2,
+            )
+
+
+@driver.on_shutdown
+async def _close_system_status_websockets() -> None:
+    global _SYSTEM_STATUS_STOPPING
+    _SYSTEM_STATUS_STOPPING = True
+    websockets = list(_SYSTEM_STATUS_CONNECTIONS)
+    if not websockets:
+        return
+    await asyncio.gather(
+        *(_close_system_status_websocket(websocket) for websocket in websockets),
+        return_exceptions=True,
+    )
+    _SYSTEM_STATUS_CONNECTIONS.clear()
 
 
 @router.get(
@@ -57,6 +82,8 @@ async def _(bot_id: str | None = None) -> Result[list[BaseInfo]]:
         if not result:
             Result.warning_("无Bot连接...")
         return Result.ok(result, "拿到信息啦!")
+    except TimeoutError:
+        return Result.fail(DB_BUSY_MESSAGE)
     except Exception as e:
         logger.error(f"{router.prefix}/get_base_info 调用错误", "WebUi", e=e)
         return Result.fail(f"发生了一点错误捏 {type(e)}: {e}")
@@ -72,6 +99,8 @@ async def _(bot_id: str | None = None) -> Result[list[BaseInfo]]:
 async def _(bot_id: str | None = None) -> Result[QueryCount]:
     try:
         return Result.ok(await ApiDataSource.get_all_chat_count(bot_id), "拿到信息啦!")
+    except TimeoutError:
+        return Result.fail(DB_BUSY_MESSAGE)
     except Exception as e:
         logger.error(f"{router.prefix}/get_all_chat_count 调用错误", "WebUi", e=e)
         return Result.fail(f"发生了一点错误捏 {type(e)}: {e}")
@@ -87,13 +116,15 @@ async def _(bot_id: str | None = None) -> Result[QueryCount]:
 async def _(bot_id: str | None = None) -> Result[QueryCount]:
     try:
         return Result.ok(await ApiDataSource.get_all_call_count(bot_id), "拿到信息啦!")
+    except TimeoutError:
+        return Result.fail(DB_BUSY_MESSAGE)
     except Exception as e:
         logger.error(f"{router.prefix}/get_all_call_count 调用错误", "WebUi", e=e)
         return Result.fail(f"发生了一点错误捏 {type(e)}: {e}")
 
 
 @router.get(
-    "get_fg_count",
+    "/get_fg_count",
     dependencies=[authentication()],
     response_model=Result[dict[str, int]],
     response_class=JSONResponse,
@@ -163,6 +194,8 @@ async def _(
         return Result.ok(
             await ApiDataSource.get_active_group(date_type, bot_id), "拿到信息啦!"
         )
+    except TimeoutError:
+        return Result.fail(DB_BUSY_MESSAGE)
     except Exception as e:
         logger.error(f"{router.prefix}/get_active_group 调用错误", "WebUi", e=e)
         return Result.fail(f"发生了一点错误捏 {type(e)}: {e}")
@@ -182,6 +215,8 @@ async def _(
         return Result.ok(
             await ApiDataSource.get_hot_plugin(date_type, bot_id), "拿到信息啦!"
         )
+    except TimeoutError:
+        return Result.fail(DB_BUSY_MESSAGE)
     except Exception as e:
         logger.error(f"{router.prefix}/get_hot_plugin 调用错误", "WebUi", e=e)
         return Result.fail(f"发生了一点错误捏 {type(e)}: {e}")
@@ -234,7 +269,6 @@ async def _(param: BotManageUpdateParam):
         bot_data.block_plugins = CommonUtils.convert_module_format(param.block_plugins)
         bot_data.block_tasks = CommonUtils.convert_module_format(param.block_tasks)
         await bot_data.save(update_fields=["block_plugins", "block_tasks"])
-        clear_help_image()
         return Result.ok()
     except Exception as e:
         logger.error(f"{router.prefix}/update_bot_manage 调用错误", "WebUi", e=e)
@@ -244,11 +278,44 @@ async def _(param: BotManageUpdateParam):
 @ws_router.websocket("/system_status")
 async def system_logs_realtime(websocket: WebSocket, sleep: int = 5):
     await websocket.accept()
+    _SYSTEM_STATUS_CONNECTIONS.add(websocket)
     logger.debug("ws system_status is connect")
-    with contextlib.suppress(
-        WebSocketDisconnect, ConnectionClosedError, ConnectionClosedOK
-    ):
-        while websocket.client_state == WebSocketState.CONNECTED:
+
+    disconnect_event = asyncio.Event()
+
+    async def _watch_disconnect() -> None:
+        try:
+            while websocket.client_state == WebSocketState.CONNECTED:
+                await websocket.receive()
+        except (WebSocketDisconnect, ConnectionClosedError, ConnectionClosedOK):
+            pass
+        except Exception as e:
+            logger.debug(f"ws system_status receive stopped: {type(e).__name__}")
+        finally:
+            disconnect_event.set()
+
+    receive_task = asyncio.create_task(_watch_disconnect())
+    try:
+        while (
+            websocket.client_state == WebSocketState.CONNECTED
+            and not _SYSTEM_STATUS_STOPPING
+        ):
             system_status = await get_system_status()
-            await websocket.send_text(system_status.json())
-            await asyncio.sleep(sleep)
+            await asyncio.wait_for(websocket.send_text(system_status.json()), timeout=5)
+            try:
+                await asyncio.wait_for(disconnect_event.wait(), timeout=max(sleep, 1))
+            except asyncio.TimeoutError:
+                pass
+    except (
+        asyncio.CancelledError,
+        WebSocketDisconnect,
+        ConnectionClosedError,
+        ConnectionClosedOK,
+    ):
+        pass
+    finally:
+        _SYSTEM_STATUS_CONNECTIONS.discard(websocket)
+        receive_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await receive_task
+        await _close_system_status_websocket(websocket)

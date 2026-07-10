@@ -1,0 +1,42 @@
+{% extends "partials/_base.html" %}
+
+{#
+Skeleton: Standard
+描述: 标准的单页布局，包含页眉、内容区、页脚。
+依赖: base.css (Utility Classes)
+#}
+
+{% block body_content %}
+<div class="flex flex-col bg-main font-main text-dark">
+
+    {# --- 页眉区域 --- #}
+    <header class="p-lg bg-card border-b shadow-sm flex justify-between items-center">
+        <div>
+            <h1 class="text-2xl font-header font-bold text-primary">
+                {{ data.title | default('Bocchi Page') }}
+            </h1>
+            {% if data.subtitle %}
+            <p class="text-sm text-muted mt-xs">{{ data.subtitle }}</p>
+            {% endif %}
+        </div>
+        {# 右上角可以放 Logo 或其他信息 #}
+        <div class="text-xs text-muted bg-main px-sm py-xs rounded-full border">
+            {{ data.timestamp }}
+        </div>
+    </header>
+
+    {# --- 主内容区域 (挖坑给子模板填) --- #}
+    <main class="grow w-full mx-auto p-lg flex flex-col gap-md" style="max-width: 1200px;">
+        {% block content %}
+        {% endblock %}
+    </main>
+
+    {# --- 页脚区域 --- #}
+    <footer class="p-md text-center text-xs text-muted mt-lg border-t bg-card">
+        {% block footer_content %}
+        <p>Powered by Bocchi Bot UI System</p>
+        {% endblock %}
+    </footer>
+
+</div>
+{% endblock %}

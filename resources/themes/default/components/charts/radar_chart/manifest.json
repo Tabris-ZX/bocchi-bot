@@ -1,0 +1,5 @@
+{
+  "name": "雷达图 (ECharts)",
+  "entrypoint": "main.html",
+  "render_options": { "viewport": { "width": 800, "height": 600 } }
+}

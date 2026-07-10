@@ -1,0 +1,77 @@
+{# --- UI Macros --- #}
+
+{# 1. 通用徽章 (Badge) #}
+{# 使用原子化类 (Scheme D) 和 CSS 变量 (Scheme C) #}
+{% macro badge(text, color='primary', rounded=False) %}
+ <span style="display: inline-flex; align-items: center; padding: 4px 10px; font-size: 12px; line-height: 1; font-weight: 800; border-radius: {{ '9999px' if rounded else '6px' }}; 
+               background-color: color-mix(in srgb, var(--color-{{ color }}, #909399) 15%, white); 
+               color: var(--color-{{ color }}, #606266); 
+               border: 1px solid color-mix(in srgb, var(--color-{{ color }}, #909399) 30%, white);
+               letter-spacing: 0.5px;">
+    {{ text }}
+</span>
+{% endmacro %}
+
+{# ==========================================================================
+智能图标宏
+- 支持传入 SVG 源码字符串 (自动识别 <svg> 标签)
+    - 支持传入 雪碧图 ID (例如 'user' 或 '#icon-user')
+    ========================================================================== #}
+    {% macro icon(source, size=24, color=None, class='', style='') %}
+    {% set final_style = style %}
+    {% if size %}
+    {% set final_style = (final_style + '; ' if final_style else '') ~ 'width: ' ~ size ~ 'px; height: ' ~ size ~ 'px;'
+    %}
+    {% endif %}
+    {% if color %}
+    {% set final_style = (final_style + '; ' if final_style else '') ~ 'color: ' ~ color ~ ';' %}
+    {% endif %}
+
+    {% if '<svg' in source | string %} <span class="icon-wrapper {{ class }}"
+        style="display: inline-flex; align-items: center; justify-content: center; line-height: 0; {{ final_style }}">
+        {{ source | safe }}
+        </span>
+        {% else %}
+        {% set icon_id = source if source.startswith('#') else '#icon-' ~ source %}
+        <svg class="icon {{ class }}" style="{{ final_style }}" aria-hidden="true">
+            <use href="{{ icon_id }}"></use>
+        </svg>
+        {% endif %}
+        {% endmacro %}
+
+        {# ==========================================================================
+        图标+文本 组合宏
+        用于标准化 图标在左、文本在右 的布局
+        ========================================================================== #}
+        {% macro icon_text(icon_source, text, size=24, color=None, class='', text_class='') %}
+        <div class="{{ class }}" style="display: flex; align-items: center; gap: 4px; {{ 'color:' ~ color if color else '' }}">
+            {{ icon(icon_source, size=size, color=None) }}
+            <span class="{{ text_class }}">{{ text }}</span>
+        </div>
+        {% endmacro %}
+
+        {# 3. 基础卡片包装器 (Card Wrapper) #}
+        {% macro card(class='', padding='md') %}
+        <div class="{{ class }}" style="background-color: var(--color-background-card); border-width: 1px; border-style: solid; border-radius: 8px; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); padding: var(--space-{{ padding }});">
+            {{ caller() }}
+        </div>
+        {% endmacro %}
+
+        {# 4. 分隔符 (Divider) #}
+{% macro divider(orientation='horizontal', margin='md') %}
+{% if orientation == 'horizontal' %}
+<div style="width: 100%; border-bottom-width: 1px; border-style: solid; margin-top: var(--space-{{ margin }}); margin-bottom: var(--space-{{ margin }}); border-color: var(--color-border-light);"></div>
+{% else %}
+<div style="height: 100%; border-left-width: 1px; border-style: solid; margin-left: var(--space-{{ margin }}); margin-right: var(--space-{{ margin }}); border-color: var(--color-border-light);"></div>
+{% endif %}
+{% endmacro %}
+
+{# 5. 进度条 (Progress Bar) #}
+{% macro progress_bar(value, max=100, label=None, color_scheme='primary', animated=False, height='18px') %}
+    {% set percent = (value / max * 100) %}
+    <div style="width: 100%; background-color: rgba(255,255,255,0.1); border-radius: 999px; height: {{ height }}; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);">
+        <div style="width: {{ percent }}%; height: 100%; background-color: var(--color-{{ color_scheme }}, #3b82f6); display: flex; align-items: center; justify-content: center; color: white; font-size: 11px; transition: width 0.6s ease; white-space: nowrap;">
+            {{ label if label else '' }}
+        </div>
+    </div>
+{% endmacro %}

@@ -5,8 +5,7 @@ from pathlib import Path
 import random
 import re
 
-import imagehash
-from nonebot.utils import is_coroutine_callable
+from nonebot.utils import is_coroutine_callable, run_sync
 from PIL import Image
 
 from bocchi.configs.path_config import TEMP_PATH
@@ -355,6 +354,15 @@ def get_img_hash(image_file: str | Path) -> str:
     返回:
         str: 哈希值
     """
+    try:
+        import imagehash
+    except ImportError:
+        logger.warning(
+            "imagehash 未安装或其依赖（numpy/scipy/PyWavelets）不可用，"
+            "图片哈希功能不可用",
+            "禁言检测",
+        )
+        return ""
     hash_value = ""
     try:
         with open(image_file, "rb") as fp:
@@ -378,7 +386,9 @@ async def get_download_image_hash(url: str, mark: str, use_proxy: bool = False) 
         if await AsyncHttpx.download_file(
             url, TEMP_PATH / f"compare_download_{mark}_img.jpg", use_proxy=use_proxy
         ):
-            img_hash = get_img_hash(TEMP_PATH / f"compare_download_{mark}_img.jpg")
+            img_hash = await run_sync(get_img_hash)(
+                TEMP_PATH / f"compare_download_{mark}_img.jpg"
+            )
             return str(img_hash)
     except Exception as e:
         logger.warning("下载读取图片Hash出错", e=e)

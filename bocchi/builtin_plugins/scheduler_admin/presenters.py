@@ -1,20 +1,10 @@
-import asyncio
 from typing import Any
 
+from bocchi import ui
 from bocchi.models.scheduled_job import ScheduledJob
-from bocchi.services.scheduler import scheduler_manager
-from bocchi.utils._image_template import ImageTemplate, RowStyle
+from bocchi.services import scheduler_manager
+from bocchi.ui.models import StatusBadgeCell, TextCell
 from bocchi.utils.pydantic_compat import model_json_schema
-
-
-def _get_type_name(annotation) -> str:
-    """获取类型注解的名称"""
-    if hasattr(annotation, "__name__"):
-        return annotation.__name__
-    elif hasattr(annotation, "_name"):
-        return annotation._name
-    else:
-        return str(annotation)
 
 
 def _get_schedule_attr(schedule: ScheduledJob | dict, attr_name: str) -> Any:
@@ -71,13 +61,8 @@ def _format_operation_result_card(
         schedule_info: 相关的 ScheduledJob 对象
         extra_info: (可选) 额外的补充信息行
     """
-    target_desc = (
-        f"群组 {schedule_info.group_id}"
-        if schedule_info.group_id
-        and schedule_info.group_id != scheduler_manager.ALL_GROUPS
-        else "所有群组"
-        if schedule_info.group_id == scheduler_manager.ALL_GROUPS
-        else "全局"
+    target_desc = format_target_info(
+        schedule_info.target_type, schedule_info.target_identifier
     )
 
     info_lines = [
@@ -118,19 +103,6 @@ def format_update_success(schedule_info: ScheduledJob) -> str:
     return _format_operation_result_card("🔄️ 成功更新定时任务配置!", schedule_info)
 
 
-def _status_row_style(column: str, text: str) -> RowStyle:
-    """为状态列设置颜色"""
-    style = RowStyle()
-    if column == "状态":
-        if text == "启用":
-            style.font_color = "#67C23A"
-        elif text == "暂停":
-            style.font_color = "#F56C6C"
-        elif text == "运行中":
-            style.font_color = "#409EFF"
-    return style
-
-
 def _format_params(schedule_status: dict) -> str:
     """将任务参数格式化为人类可读的字符串"""
     if kwargs := schedule_status.get("job_kwargs"):
@@ -139,68 +111,95 @@ def _format_params(schedule_status: dict) -> str:
 
 
 async def format_schedule_list_as_image(
-    schedules: list[ScheduledJob], title: str, current_page: int
+    schedules: list[ScheduledJob], title: str, current_page: int, total_items: int
 ):
     """将任务列表格式化为图片"""
-    page_size = 15
-    total_items = len(schedules)
+    page_size = 30
     total_pages = (total_items + page_size - 1) // page_size
-    start_index = (current_page - 1) * page_size
-    end_index = start_index + page_size
-    paginated_schedules = schedules[start_index:end_index]
 
-    if not paginated_schedules:
+    if not schedules:
         return "这一页没有内容了哦~"
 
-    status_tasks = [
-        scheduler_manager.get_schedule_status(s.id) for s in paginated_schedules
-    ]
-    all_statuses = await asyncio.gather(*status_tasks)
+    schedule_ids = [s.id for s in schedules]
+    all_statuses_list = await scheduler_manager.get_schedules_status_bulk(schedule_ids)
+    all_statuses_map = {status["id"]: status for status in all_statuses_list}
 
-    def get_status_text(status_value):
-        if isinstance(status_value, bool):
-            return "启用" if status_value else "暂停"
-        return str(status_value)
+    data_list = []
+    for schedule_db in schedules:
+        s = all_statuses_map.get(schedule_db.id)
+        if not s:
+            continue
 
-    data_list = [
-        [
-            s["id"],
-            s["plugin_name"],
-            s.get("bot_id") or "N/A",
-            s["group_id"] or "全局",
-            s["next_run_time"],
-            _format_trigger_info(s),
-            _format_params(s),
-            get_status_text(s["is_enabled"]),
-        ]
-        for s in all_statuses
-        if s
-    ]
+        status_value = s["is_enabled"]
+        if status_value == "运行中":
+            status_cell = StatusBadgeCell(text="运行中", status_type="info")
+        else:
+            is_enabled = status_value == "启用"
+            status_cell = StatusBadgeCell(
+                text="启用" if is_enabled else "暂停",
+                status_type="ok" if is_enabled else "error",
+            )
+
+        data_list.append(
+            [
+                TextCell(content=str(s["id"])),
+                TextCell(content=s["plugin_name"]),
+                TextCell(content=s.get("bot_id") or "N/A"),
+                TextCell(
+                    content=format_target_info(s["target_type"], s["target_identifier"])
+                ),
+                TextCell(content=s["next_run_time"]),
+                TextCell(content=_format_trigger_info(s)),
+                TextCell(content=_format_params(s)),
+                status_cell,
+            ]
+        )
 
     if not data_list:
         return "没有找到任何相关的定时任务。"
 
-    return await ImageTemplate.table_page(
-        head_text=title,
-        tip_text=f"第 {current_page}/{total_pages} 页，共 {total_items} 条任务",
-        column_name=["ID", "插件", "Bot", "目标", "下次运行", "规则", "参数", "状态"],
-        data_list=data_list,
-        column_space=20,
-        text_style=_status_row_style,
+    table = ui.table(
+        title, f"第 {current_page}/{total_pages} 页，共 {total_items} 条任务"
     )
+    table.set_headers(
+        ["ID", "插件", "Bot", "目标", "下次运行", "规则", "参数", "状态"]
+    ).add_rows(data_list)
+    return await ui.render(
+        table,
+        viewport={"width": 1400, "height": 10},
+        device_scale_factor=2,
+    )
+
+
+def format_target_info(target_type: str, target_identifier: str) -> str:
+    """格式化目标信息以供显示"""
+    if target_type == "GLOBAL":
+        return "全局"
+    elif target_type == "ALL_GROUPS":
+        return "所有群组"
+    elif target_type == "TAG":
+        return f"标签: {target_identifier}"
+    elif target_type == "GROUP":
+        return f"群: {target_identifier}"
+    elif target_type == "USER":
+        return f"用户: {target_identifier}"
+    else:
+        return f"{target_type}: {target_identifier}"
 
 
 def format_single_status_message(status: dict) -> str:
     """格式化单个任务状态为文本消息"""
+    target_info = format_target_info(status["target_type"], status["target_identifier"])
+    trigger_info = status.get("trigger_info_str", _format_trigger_info(status))
     info_lines = [
         f"📋 定时任务详细信息 (ID: {status['id']})",
         "--------------------",
         f"▫️ 插件: {status['plugin_name']}",
         f"▫️ Bot ID: {status.get('bot_id') or '默认'}",
-        f"▫️ 目标: {status['group_id'] or '全局'}",
+        f"▫️ 目标: {target_info}",
         f"▫️ 状态: {'✔️ 已启用' if status['is_enabled'] else '⏸️ 已暂停'}",
         f"▫️ 下次运行: {status['next_run_time']}",
-        f"▫️ 触发规则: {_format_trigger_info(status)}",
+        f"▫️ 触发规则: {trigger_info}",
         f"▫️ 任务参数: {_format_params(status)}",
     ]
     return "\n".join(info_lines)

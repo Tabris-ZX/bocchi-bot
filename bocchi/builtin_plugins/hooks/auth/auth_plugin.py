@@ -1,4 +1,3 @@
-import asyncio
 import time
 
 from nonebot.adapters import Event
@@ -6,101 +5,96 @@ from nonebot_plugin_uninfo import Uninfo
 
 from bocchi.models.group_console import GroupConsole
 from bocchi.models.plugin_info import PluginInfo
-from bocchi.services.data_access import DataAccess
-from bocchi.services.db_context import DB_TIMEOUT_SECONDS
+from bocchi.services.cache.runtime_cache import GroupSnapshot, _parse_block_modules
 from bocchi.services.log import logger
-from bocchi.utils.common_utils import CommonUtils
 from bocchi.utils.enum import BlockType
-from bocchi.utils.utils import get_entity_ids
 
 from .config import LOGGER_COMMAND, WARNING_THRESHOLD
+from .context import PermissionContext
 from .exception import IsSuperuserException, SkipPluginException
-from .utils import freq, is_poke, send_message
+from .utils import freq, is_poke
+
+
+def _get_group_block_sets(
+    group: GroupConsole | GroupSnapshot,
+) -> tuple[frozenset[str], frozenset[str]]:
+    block_set = getattr(group, "block_plugin_set", None)
+    super_block_set = getattr(group, "superuser_block_plugin_set", None)
+    if block_set is None:
+        block_set = _parse_block_modules(getattr(group, "block_plugin", "") or "")
+        setattr(group, "block_plugin_set", block_set)
+    if super_block_set is None:
+        super_block_set = _parse_block_modules(
+            getattr(group, "superuser_block_plugin", "") or ""
+        )
+        setattr(group, "superuser_block_plugin_set", super_block_set)
+    return block_set, super_block_set
 
 
 class GroupCheck:
     def __init__(
-        self, plugin: PluginInfo, group_id: str, session: Uninfo, is_poke: bool
+        self,
+        plugin: PluginInfo,
+        group: GroupConsole | GroupSnapshot,
+        session: Uninfo,
+        is_poke: bool,
+        skip_group_block: bool,
     ) -> None:
-        self.group_id = group_id
         self.session = session
         self.is_poke = is_poke
         self.plugin = plugin
-        self.group_dao = DataAccess(GroupConsole)
-        self.group_data = None
+        self.group_data = group
+        self.group_id = group.group_id
+        self.skip_group_block = skip_group_block
+        (
+            self.block_plugin_set,
+            self.superuser_block_plugin_set,
+        ) = _get_group_block_sets(group)
 
     async def check(self):
         start_time = time.time()
         try:
-            # 只查询一次数据库，使用 DataAccess 的缓存机制
-            try:
-                self.group_data = await asyncio.wait_for(
-                    self.group_dao.safe_get_or_none(
-                        group_id=self.group_id, channel_id__isnull=True
-                    ),
-                    timeout=DB_TIMEOUT_SECONDS,
-                )
-            except asyncio.TimeoutError:
-                logger.error(f"查询群组数据超时: {self.group_id}", LOGGER_COMMAND)
-                return  # 超时时不阻塞，继续执行
+            if not self.skip_group_block:
+                # 检查超级用户禁用
+                if (
+                    self.group_data
+                    and self.plugin.module in self.superuser_block_plugin_set
+                ):
+                    should_tip = freq.is_send_limit_message(
+                        self.plugin, self.group_id, self.is_poke
+                    )
+                    raise SkipPluginException(
+                        f"{self.plugin.name}({self.plugin.module})"
+                        f" 超级管理员禁用了该群此功能...",
+                        tip_message=(
+                            "超级管理员禁用了该群此功能..." if should_tip else None
+                        ),
+                        tip_check_tag=self.group_id if should_tip else None,
+                        tip_background=should_tip,
+                    )
 
-            # 检查超级用户禁用
-            if (
-                self.group_data
-                and CommonUtils.format(self.plugin.module)
-                in self.group_data.superuser_block_plugin
-            ):
-                if freq.is_send_limit_message(self.plugin, self.group_id, self.is_poke):
-                    try:
-                        await asyncio.wait_for(
-                            send_message(
-                                self.session,
-                                "超级管理员禁用了该群此功能...",
-                                self.group_id,
-                            ),
-                            timeout=DB_TIMEOUT_SECONDS,
-                        )
-                    except asyncio.TimeoutError:
-                        logger.error(f"发送消息超时: {self.group_id}", LOGGER_COMMAND)
-                raise SkipPluginException(
-                    f"{self.plugin.name}({self.plugin.module})"
-                    f" 超级管理员禁用了该群此功能..."
-                )
-
-            # 检查普通禁用
-            if (
-                self.group_data
-                and CommonUtils.format(self.plugin.module)
-                in self.group_data.block_plugin
-            ):
-                if freq.is_send_limit_message(self.plugin, self.group_id, self.is_poke):
-                    try:
-                        await asyncio.wait_for(
-                            send_message(
-                                self.session, "该群未开启此功能...", self.group_id
-                            ),
-                            timeout=DB_TIMEOUT_SECONDS,
-                        )
-                    except asyncio.TimeoutError:
-                        logger.error(f"发送消息超时: {self.group_id}", LOGGER_COMMAND)
-                raise SkipPluginException(
-                    f"{self.plugin.name}({self.plugin.module}) 未开启此功能..."
-                )
+                # 检查普通禁用
+                if self.group_data and self.plugin.module in self.block_plugin_set:
+                    should_tip = freq.is_send_limit_message(
+                        self.plugin, self.group_id, self.is_poke
+                    )
+                    raise SkipPluginException(
+                        f"{self.plugin.name}({self.plugin.module}) 未开启此功能...",
+                        tip_message="该群未开启此功能..." if should_tip else None,
+                        tip_check_tag=self.group_id if should_tip else None,
+                        tip_background=should_tip,
+                    )
 
             # 检查全局禁用
             if self.plugin.block_type == BlockType.GROUP:
-                if freq.is_send_limit_message(self.plugin, self.group_id, self.is_poke):
-                    try:
-                        await asyncio.wait_for(
-                            send_message(
-                                self.session, "该功能在群组中已被禁用...", self.group_id
-                            ),
-                            timeout=DB_TIMEOUT_SECONDS,
-                        )
-                    except asyncio.TimeoutError:
-                        logger.error(f"发送消息超时: {self.group_id}", LOGGER_COMMAND)
+                should_tip = freq.is_send_limit_message(
+                    self.plugin, self.group_id, self.is_poke
+                )
                 raise SkipPluginException(
-                    f"{self.plugin.name}({self.plugin.module})该插件在群组中已被禁用..."
+                    f"{self.plugin.name}({self.plugin.module})该插件在群组中已被禁用...",
+                    tip_message="该功能在群组中已被禁用..." if should_tip else None,
+                    tip_check_tag=self.group_id if should_tip else None,
+                    tip_background=should_tip,
                 )
         finally:
             # 记录执行时间
@@ -113,12 +107,20 @@ class GroupCheck:
 
 
 class PluginCheck:
-    def __init__(self, group_id: str | None, session: Uninfo, is_poke: bool):
+    def __init__(
+        self,
+        group: GroupConsole | GroupSnapshot | None,
+        session: Uninfo,
+        is_poke: bool,
+        user_id: str | None,
+    ):
         self.session = session
         self.is_poke = is_poke
-        self.group_id = group_id
-        self.group_dao = DataAccess(GroupConsole)
-        self.group_data = None
+        self.group_data = group
+        self.user_id = user_id or session.user.id
+        self.group_id = None
+        if group:
+            self.group_id = group.group_id
 
     async def check_user(self, plugin: PluginInfo):
         """全局私聊禁用检测
@@ -130,16 +132,12 @@ class PluginCheck:
             IgnoredException: 忽略插件
         """
         if plugin.block_type == BlockType.PRIVATE:
-            if freq.is_send_limit_message(plugin, self.session.user.id, self.is_poke):
-                try:
-                    await asyncio.wait_for(
-                        send_message(self.session, "该功能在私聊中已被禁用..."),
-                        timeout=DB_TIMEOUT_SECONDS,
-                    )
-                except asyncio.TimeoutError:
-                    logger.error("发送消息超时", LOGGER_COMMAND)
+            should_tip = freq.is_send_limit_message(plugin, self.user_id, self.is_poke)
             raise SkipPluginException(
-                f"{plugin.name}({plugin.module}) 该插件在私聊中已被禁用..."
+                f"{plugin.name}({plugin.module}) 该插件在私聊中已被禁用...",
+                tip_message="该功能在私聊中已被禁用..." if should_tip else None,
+                tip_check_tag=self.user_id if should_tip else None,
+                tip_background=should_tip,
             )
 
     async def check_global(self, plugin: PluginInfo):
@@ -156,33 +154,16 @@ class PluginCheck:
             if plugin.status or plugin.block_type != BlockType.ALL:
                 return
             """全局状态"""
-            if self.group_id:
-                # 使用 DataAccess 的缓存机制
-                try:
-                    self.group_data = await asyncio.wait_for(
-                        self.group_dao.safe_get_or_none(
-                            group_id=self.group_id, channel_id__isnull=True
-                        ),
-                        timeout=DB_TIMEOUT_SECONDS,
-                    )
-                except asyncio.TimeoutError:
-                    logger.error(f"查询群组数据超时: {self.group_id}", LOGGER_COMMAND)
-                    return  # 超时时不阻塞，继续执行
+            if self.group_data and self.group_data.is_super:
+                raise IsSuperuserException()
 
-                if self.group_data and self.group_data.is_super:
-                    raise IsSuperuserException()
-
-            sid = self.group_id or self.session.user.id
-            if freq.is_send_limit_message(plugin, sid, self.is_poke):
-                try:
-                    await asyncio.wait_for(
-                        send_message(self.session, "全局未开启此功能...", sid),
-                        timeout=DB_TIMEOUT_SECONDS,
-                    )
-                except asyncio.TimeoutError:
-                    logger.error(f"发送消息超时: {sid}", LOGGER_COMMAND)
+            sid = self.group_id or self.user_id
+            should_tip = freq.is_send_limit_message(plugin, sid, self.is_poke)
             raise SkipPluginException(
-                f"{plugin.name}({plugin.module}) 全局未开启此功能..."
+                f"{plugin.name}({plugin.module}) 全局未开启此功能...",
+                tip_message="全局未开启此功能..." if should_tip else None,
+                tip_check_tag=sid if should_tip else None,
+                tip_background=should_tip,
             )
         finally:
             # 记录执行时间
@@ -193,7 +174,16 @@ class PluginCheck:
                 )
 
 
-async def auth_plugin(plugin: PluginInfo, session: Uninfo, event: Event):
+async def auth_plugin(
+    plugin: PluginInfo,
+    group: GroupConsole | GroupSnapshot | None,
+    session: Uninfo,
+    event: Event,
+    *,
+    context: PermissionContext | None = None,
+    skip_group_block: bool = False,
+    user_id: str | None = None,
+):
     """插件状态
 
     参数:
@@ -203,35 +193,28 @@ async def auth_plugin(plugin: PluginInfo, session: Uninfo, event: Event):
     """
     start_time = time.time()
     try:
-        entity = get_entity_ids(session)
+        if context is not None:
+            group = context.group or group
+            user_id = context.user_id
         is_poke_event = is_poke(event)
-        user_check = PluginCheck(entity.group_id, session, is_poke_event)
+        user_check = PluginCheck(group, session, is_poke_event, user_id)
 
-        if entity.group_id:
-            group_check = GroupCheck(plugin, entity.group_id, session, is_poke_event)
-            try:
-                await asyncio.wait_for(
-                    group_check.check(), timeout=DB_TIMEOUT_SECONDS * 2
-                )
-            except asyncio.TimeoutError:
-                logger.error(f"群组检查超时: {entity.group_id}", LOGGER_COMMAND)
-                # 超时时不阻塞，继续执行
+        if group:
+            block_set, super_block_set = _get_group_block_sets(group)
+            if (
+                plugin.status
+                and plugin.block_type != BlockType.GROUP
+                and not block_set
+                and not super_block_set
+            ):
+                return
+            await GroupCheck(
+                plugin, group, session, is_poke_event, skip_group_block
+            ).check()
         else:
-            try:
-                await asyncio.wait_for(
-                    user_check.check_user(plugin), timeout=DB_TIMEOUT_SECONDS
-                )
-            except asyncio.TimeoutError:
-                logger.error("用户检查超时", LOGGER_COMMAND)
-                # 超时时不阻塞，继续执行
+            await user_check.check_user(plugin)
+        await user_check.check_global(plugin)
 
-        try:
-            await asyncio.wait_for(
-                user_check.check_global(plugin), timeout=DB_TIMEOUT_SECONDS
-            )
-        except asyncio.TimeoutError:
-            logger.error("全局检查超时", LOGGER_COMMAND)
-            # 超时时不阻塞，继续执行
     finally:
         # 记录总执行时间
         elapsed = time.time() - start_time

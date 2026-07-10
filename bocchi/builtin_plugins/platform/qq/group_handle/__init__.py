@@ -17,6 +17,8 @@ from bocchi.configs.utils import PluginExtraData, RegisterConfig, Task
 from bocchi.models.event_log import EventLog
 from bocchi.models.group_console import GroupConsole
 from bocchi.services.cache import CacheRoot
+from bocchi.services.log import logger
+from bocchi.services.tags import tag_manager
 from bocchi.utils.common_utils import CommonUtils
 from bocchi.utils.enum import EventLogType, PluginType
 from bocchi.utils.platform import PlatformUtils
@@ -106,9 +108,7 @@ async def _(
 ):
     if session.user.id == bot.self_id:
         """新成员为bot本身"""
-        group, _ = await GroupConsole.get_or_create(
-            group_id=str(event.group_id), channel_id__isnull=True
-        )
+        group, _ = await GroupConsole.get_or_create_root_group(str(event.group_id))
         try:
             await GroupManager.add_bot(
                 bot, str(event.operator_id), str(event.group_id), group
@@ -134,6 +134,11 @@ async def _(
         await GroupManager.kick_bot(bot, group_id, str(event.operator_id))
         await EventLog.create(
             user_id=user_id, group_id=group_id, event_type=EventLogType.KICK_BOT
+        )
+        await tag_manager.remove_group_from_all_tags(group_id)
+        logger.info(
+            f"机器人被移出群聊，已自动从所有静态标签中移除群组 {group_id}",
+            "群组标签管理",
         )
     elif event.sub_type in ["leave", "kick"]:
         if event.sub_type == "leave":

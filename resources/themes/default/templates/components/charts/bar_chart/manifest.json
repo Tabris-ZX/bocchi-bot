@@ -1,7 +1,0 @@
-{
-  "name": "横向柱状图 (ECharts)",
-  "entrypoint": "main.html",
-  "render_options": {
-    "viewport": { "width": 1000, "height": 1000 }
-  }
-}

@@ -1,6 +1,8 @@
 import asyncio
+from collections.abc import Callable
+from dataclasses import dataclass, field
 import time
-from typing import ClassVar
+from typing import Any, ClassVar
 
 import nonebot
 from nonebot_plugin_uninfo import Uninfo
@@ -15,26 +17,83 @@ from bocchi.utils.limiters import CountLimiter, FreqLimiter, UserBlockLimiter
 from bocchi.utils.manager.priority_manager import PriorityLifecycle
 from bocchi.utils.message import MessageUtils
 from bocchi.utils.time_utils import TimeUtils
-from bocchi.utils.utils import get_entity_ids
+from bocchi.utils.utils import EntityIDs, get_entity_ids
 
 from .config import LOGGER_COMMAND, WARNING_THRESHOLD
+from .context import PermissionContext
+from .data_provider import (
+    DEFAULT_PERMISSION_DATA_PROVIDER,
+    PluginLimitSnapshot,
+)
 from .exception import SkipPluginException
 
 driver = nonebot.get_driver()
 
+_LIMIT_NOTICE_CD = 2
+_LIMIT_NOTICE_LIMITER = FreqLimiter(_LIMIT_NOTICE_CD)
+_LIMIT_NOTICE_TASKS: set[asyncio.Task] = set()
 
-@PriorityLifecycle.on_startup(priority=5)
+
+@PriorityLifecycle.on_startup(priority=7)
 async def _():
     """初始化限制"""
     await LimitManager.init_limit()
 
 
 class Limit(BaseModel):
-    limit: PluginLimit
+    limit: PluginLimit | PluginLimitSnapshot
     limiter: FreqLimiter | UserBlockLimiter | CountLimiter
 
     class Config:
         arbitrary_types_allowed = True
+
+
+@dataclass(slots=True)
+class LimitReservation:
+    module: str
+    releases: list[Callable[[], None]] = field(default_factory=list)
+    should_auto_unblock: bool = False
+    active: bool = True
+
+    def commit(self) -> None:
+        self.active = False
+        self.releases.clear()
+
+    def release(self) -> None:
+        if not self.active:
+            return
+        for release in reversed(self.releases):
+            release()
+        self.active = False
+        self.releases.clear()
+
+
+def _limit_notice_key(
+    limit: PluginLimit | PluginLimitSnapshot,
+    user_id: str,
+    group_id: str | None,
+    channel_id: str | None,
+) -> str:
+    key = user_id
+    if group_id and limit.watch_type == LimitWatchType.GROUP:
+        key = channel_id or group_id
+    return f"{limit.module}:{limit.limit_type}:{key}"
+
+
+def _send_limit_notice(message: str, format_kwargs: dict[str, Any], key: str) -> None:
+    if not _LIMIT_NOTICE_LIMITER.check(key):
+        return
+    _LIMIT_NOTICE_LIMITER.start_cd(key)
+
+    async def _send():
+        try:
+            await MessageUtils.build_message(message, format_args=format_kwargs).send()
+        except Exception as exc:
+            logger.error("limit notice send failed", LOGGER_COMMAND, e=exc)
+
+    task = asyncio.create_task(_send())
+    _LIMIT_NOTICE_TASKS.add(task)
+    task.add_done_callback(_LIMIT_NOTICE_TASKS.discard)
 
 
 class LimitManager:
@@ -47,9 +106,11 @@ class LimitManager:
     block_limit: ClassVar[dict[str, Limit]] = {}
     count_limit: ClassVar[dict[str, Limit]] = {}
 
-    # 模块限制缓存，避免频繁查询数据库
-    module_limit_cache: ClassVar[dict[str, tuple[float, list[PluginLimit]]]] = {}
-    module_cache_ttl: ClassVar[float] = 60  # 模块缓存有效期（秒）
+    # 只缓存异常短路结果；正常 limit 列表统一从 PluginLimitMemoryCache 读取。
+    module_limit_error_cache: ClassVar[
+        dict[str, tuple[float, list[PluginLimitSnapshot]]]
+    ] = {}
+    module_cache_error_ttl: ClassVar[float] = 5  # 超时缓存有效期（秒）
 
     @classmethod
     async def init_limit(cls):
@@ -70,20 +131,16 @@ class LimitManager:
         cls.is_updating = True
         try:
             start_time = time.time()
-            try:
-                limit_list = await asyncio.wait_for(
-                    PluginLimit.filter(status=True).all(), timeout=DB_TIMEOUT_SECONDS
-                )
-            except asyncio.TimeoutError:
-                logger.error("查询限制信息超时", LOGGER_COMMAND)
-                cls.is_updating = False
-                return
+            provider = DEFAULT_PERMISSION_DATA_PROVIDER
+            await provider.ensure_module_limits_loaded()
+            limit_list = await provider.get_all_module_limits()
 
             # 清空旧数据
             cls.add_module = []
             cls.cd_limit = {}
             cls.block_limit = {}
             cls.count_limit = {}
+            cls.module_limit_error_cache.clear()
             # 添加新数据
             for limit in limit_list:
                 cls.add_limit(limit)
@@ -96,7 +153,7 @@ class LimitManager:
             cls.is_updating = False
 
     @classmethod
-    def add_limit(cls, limit: PluginLimit):
+    def add_limit(cls, limit: PluginLimit | PluginLimitSnapshot):
         """添加限制
 
         参数:
@@ -104,18 +161,22 @@ class LimitManager:
         """
         if limit.module not in cls.add_module:
             cls.add_module.append(limit.module)
-            if limit.limit_type == PluginLimitType.BLOCK:
-                cls.block_limit[limit.module] = Limit(
-                    limit=limit, limiter=UserBlockLimiter()
-                )
-            elif limit.limit_type == PluginLimitType.CD:
-                cls.cd_limit[limit.module] = Limit(
-                    limit=limit, limiter=FreqLimiter(limit.cd)
-                )
-            elif limit.limit_type == PluginLimitType.COUNT:
-                cls.count_limit[limit.module] = Limit(
-                    limit=limit, limiter=CountLimiter(limit.max_count)
-                )
+        if limit.limit_type == PluginLimitType.BLOCK:
+            cls.block_limit[limit.module] = Limit(
+                limit=limit, limiter=UserBlockLimiter()
+            )
+        elif limit.limit_type == PluginLimitType.CD:
+            cd_value = int(limit.cd or 0)
+            cls.cd_limit[limit.module] = Limit(
+                limit=limit, limiter=FreqLimiter(cd_value)
+            )
+        elif limit.limit_type == PluginLimitType.COUNT:
+            max_count = int(limit.max_count or 0)
+            if max_count <= 0:
+                return
+            cls.count_limit[limit.module] = Limit(
+                limit=limit, limiter=CountLimiter(max_count)
+            )
 
     @classmethod
     def unblock(
@@ -144,7 +205,7 @@ class LimitManager:
             limiter.set_false(key_type)
 
     @classmethod
-    async def get_module_limits(cls, module: str) -> list[PluginLimit]:
+    async def get_module_limits(cls, module: str) -> list[PluginLimitSnapshot]:
         """获取模块的限制信息，使用缓存减少数据库查询
 
         参数:
@@ -155,32 +216,21 @@ class LimitManager:
         """
         current_time = time.time()
 
-        # 检查缓存
-        if module in cls.module_limit_cache:
-            cache_time, limits = cls.module_limit_cache[module]
-            if current_time - cache_time < cls.module_cache_ttl:
+        # 正常路径不再二次缓存列表，避免与 PluginLimitMemoryCache 形成双真源。
+        if module in cls.module_limit_error_cache:
+            cache_time, limits = cls.module_limit_error_cache[module]
+            if current_time - cache_time < cls.module_cache_error_ttl:
                 return limits
+            cls.module_limit_error_cache.pop(module, None)
 
-        # 缓存不存在或已过期，从数据库查询
+        # 缓存不存在或已过期，从内存缓存获取
         try:
-            start_time = time.time()
-            limits = await asyncio.wait_for(
-                PluginLimit.filter(module=module, status=True).all(),
-                timeout=DB_TIMEOUT_SECONDS,
-            )
-            elapsed = time.time() - start_time
-            if elapsed > WARNING_THRESHOLD:  # 记录耗时超过500ms的查询
-                logger.warning(
-                    f"查询模块限制信息耗时: {elapsed:.3f}s, 模块: {module}",
-                    LOGGER_COMMAND,
-                )
-
-            # 更新缓存
-            cls.module_limit_cache[module] = (current_time, limits)
-            return limits
-        except asyncio.TimeoutError:
-            logger.error(f"查询模块限制信息超时: {module}", LOGGER_COMMAND)
-            # 超时时返回空列表，避免阻塞
+            provider = DEFAULT_PERMISSION_DATA_PROVIDER
+            await provider.ensure_module_limits_loaded()
+            return await provider.get_module_limits(module)
+        except Exception as exc:
+            logger.error(f"get module limits failed: {module}", LOGGER_COMMAND, e=exc)
+            cls.module_limit_error_cache[module] = (current_time, [])
             return []
 
     @classmethod
@@ -218,14 +268,9 @@ class LimitManager:
             for limit in limits:
                 cls.add_limit(limit)
 
-        # 检查各种限制
         try:
-            if limit_model := cls.cd_limit.get(module):
-                await cls.__check(limit_model, user_id, group_id, channel_id)
-            if limit_model := cls.block_limit.get(module):
-                await cls.__check(limit_model, user_id, group_id, channel_id)
-            if limit_model := cls.count_limit.get(module):
-                await cls.__check(limit_model, user_id, group_id, channel_id)
+            reservation = await cls.reserve(module, user_id, group_id, channel_id)
+            reservation.commit()
         finally:
             # 记录总执行时间
             elapsed = time.time() - start_time
@@ -238,13 +283,53 @@ class LimitManager:
                 )
 
     @classmethod
-    async def __check(
+    async def reserve(
+        cls,
+        module: str,
+        user_id: str,
+        group_id: str | None,
+        channel_id: str | None,
+    ) -> LimitReservation:
+        """检查并预留限制状态；调用方失败时可 release 回滚内存限制。"""
+        if (
+            time.time() - cls.last_update_time > cls.update_interval
+            and not cls.is_updating
+        ):
+            asyncio.create_task(cls.update_limits())  # noqa: RUF006
+
+        if module not in cls.add_module:
+            limits = await cls.get_module_limits(module)
+            for limit in limits:
+                cls.add_limit(limit)
+
+        reservation = LimitReservation(module=module)
+        try:
+            if limit_model := cls.cd_limit.get(module):
+                reservation.releases.append(
+                    await cls.__reserve(limit_model, user_id, group_id, channel_id)
+                )
+            if limit_model := cls.block_limit.get(module):
+                reservation.should_auto_unblock = True
+                reservation.releases.append(
+                    await cls.__reserve(limit_model, user_id, group_id, channel_id)
+                )
+            if limit_model := cls.count_limit.get(module):
+                reservation.releases.append(
+                    await cls.__reserve(limit_model, user_id, group_id, channel_id)
+                )
+        except Exception:
+            reservation.release()
+            raise
+        return reservation
+
+    @classmethod
+    async def __reserve(
         cls,
         limit_model: Limit | None,
         user_id: str,
         group_id: str | None,
         channel_id: str | None,
-    ):
+    ) -> Callable[[], None]:
         """检测限制
 
         参数:
@@ -257,11 +342,11 @@ class LimitManager:
             IgnoredException: IgnoredException
         """
         if not limit_model:
-            return
+            return lambda: None
         limit = limit_model.limit
         limiter = limit_model.limiter
         is_limit = (
-            LimitWatchType.ALL
+            limit.watch_type == LimitWatchType.ALL
             or (group_id and limit.watch_type == LimitWatchType.GROUP)
             or (not group_id and limit.watch_type == LimitWatchType.USER)
         )
@@ -275,15 +360,8 @@ class LimitManager:
                     left_time = limiter.left_time(key_type)
                     cd_str = TimeUtils.format_duration(left_time)
                     format_kwargs = {"cd": cd_str}
-                try:
-                    await asyncio.wait_for(
-                        MessageUtils.build_message(
-                            limit.result, format_args=format_kwargs
-                        ).send(),
-                        timeout=DB_TIMEOUT_SECONDS,
-                    )
-                except asyncio.TimeoutError:
-                    logger.error(f"发送限制消息超时: {limit.module}", LOGGER_COMMAND)
+                notice_key = _limit_notice_key(limit, user_id, group_id, channel_id)
+                _send_limit_notice(limit.result, format_kwargs, notice_key)
             raise SkipPluginException(
                 f"{limit.module}({limit.limit_type}) 正在限制中..."
             )
@@ -295,28 +373,96 @@ class LimitManager:
                 group_id=group_id,
             )
             if isinstance(limiter, FreqLimiter):
+                had_next_time = key_type in limiter.next_time
+                old_next_time = limiter.next_time.get(key_type, 0.0)
                 limiter.start_cd(key_type)
+
+                def release_freq() -> None:
+                    if had_next_time:
+                        limiter.next_time[key_type] = old_next_time
+                    else:
+                        limiter.next_time.pop(key_type, None)
+
+                return release_freq
             if isinstance(limiter, UserBlockLimiter):
+                old_flag = limiter.flag_data.get(key_type, False)
+                old_time = limiter.time.get(key_type, 0.0)
                 limiter.set_true(key_type)
+
+                def release_block() -> None:
+                    limiter.flag_data[key_type] = old_flag
+                    if old_time:
+                        limiter.time[key_type] = old_time
+                    else:
+                        limiter.time.pop(key_type, None)
+
+                return release_block
             if isinstance(limiter, CountLimiter):
+                old_count = limiter.count.get(key_type, 0)
                 limiter.increase(key_type)
 
+                def release_count() -> None:
+                    limiter.count[key_type] = old_count
 
-async def auth_limit(plugin: PluginInfo, session: Uninfo):
+                return release_count
+        return lambda: None
+
+
+async def auth_limit(
+    plugin: PluginInfo,
+    session: Uninfo,
+    *,
+    context: PermissionContext | None = None,
+    entity: EntityIDs | None = None,
+):
     """插件限制
 
     参数:
         plugin: PluginInfo
         session: Uninfo
     """
-    entity = get_entity_ids(session)
+    if context is not None:
+        entity = context.entity
+    if entity is None:
+        entity = get_entity_ids(session)
     try:
         await asyncio.wait_for(
-            LimitManager.check(
-                plugin.module, entity.user_id, entity.group_id, entity.channel_id
-            ),
+            _reserve_and_commit_limit(plugin.module, entity),
             timeout=DB_TIMEOUT_SECONDS * 2,  # 给予更长的超时时间
         )
     except asyncio.TimeoutError:
         logger.error(f"检查插件限制超时: {plugin.module}", LOGGER_COMMAND)
         # 超时时不抛出异常，允许继续执行
+
+
+async def reserve_auth_limit(
+    plugin: PluginInfo,
+    session: Uninfo,
+    *,
+    context: PermissionContext | None = None,
+    entity: EntityIDs | None = None,
+) -> LimitReservation:
+    del session
+    if context is not None:
+        entity = context.entity
+    if entity is None:
+        raise RuntimeError("reserve_auth_limit requires entity or context")
+    return await LimitManager.reserve(
+        plugin.module,
+        entity.user_id,
+        entity.group_id,
+        entity.channel_id,
+    )
+
+
+async def _reserve_and_commit_limit(
+    module: str,
+    entity: EntityIDs,
+) -> None:
+    reservation = await LimitManager.reserve(
+        module,
+        entity.user_id,
+        entity.group_id,
+        entity.channel_id,
+    )
+    reservation.commit()

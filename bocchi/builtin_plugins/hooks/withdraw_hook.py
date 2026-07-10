@@ -13,6 +13,8 @@ async def _(
     exception: Exception | None,
     bot: Bot,
 ):
+    if not WithdrawManager._data:
+        return
     tasks = []
     index_list = list(WithdrawManager._data.keys())
     for index in index_list:

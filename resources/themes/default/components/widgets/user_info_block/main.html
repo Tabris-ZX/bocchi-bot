@@ -1,0 +1,22 @@
+{% from 'partials/_component_macros.jinja' import wrapper %}
+{% call wrapper(data, 'user-info-block') %}
+    <img class="user-info-avatar" src="{{ data.avatar_url }}" alt="avatar">
+    <div class="user-info-text">
+        <div class="user-info-name">{{ data.name }}</div>
+        {% if data.subtitle %}
+        <div class="user-info-subtitle">{{ data.subtitle }}</div>
+        {% endif %}
+        {% if data.tags %}
+        <div class="user-info-tags">
+            {% for tag in data.tags %}
+            <span class="user-info-tag">{{ tag }}</span>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% if data.extra %}
+        <div class="user-info-extra" style="margin-top: 6px;">
+            {{ render(data.extra) }}
+        </div>
+        {% endif %}
+    </div>
+{% endcall %}

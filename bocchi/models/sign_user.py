@@ -29,7 +29,7 @@ class SignUser(Model):
         10, 3, default=0, description="指定双倍概率"
     )
     """使用指定双倍概率"""
-    platform = fields.CharField(255, default="qq", description="平台")
+    platform = fields.CharField(255, null=True, description="平台")
     """平台"""
 
     class Meta:  # pyright: ignore [reportIncompatibleVariableOverride]
@@ -47,8 +47,6 @@ class SignUser(Model):
         返回:
             Self: SignUser
         """
-        if platform is None:
-            platform = "qq"
         user_console = await UserConsole.get_user(user_id, platform)
         user, _ = await SignUser.get_or_create(
             user_id=user_id,
@@ -72,8 +70,6 @@ class SignUser(Model):
             bot_id: bot Id
             platform: 平台
         """
-        if platform is None:
-            platform = "qq"
         if isinstance(user_id, SignUser):
             user = user_id
         else:

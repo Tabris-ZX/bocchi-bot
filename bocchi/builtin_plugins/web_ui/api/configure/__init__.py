@@ -1,16 +1,12 @@
-import asyncio
-import os
 from pathlib import Path
 import re
-import subprocess
-import sys
-import time
 
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 import nonebot
 
 from bocchi.configs.config import BotConfig, Config
+from bocchi.utils._restart_utils import issue_restart_ticket, request_restart
 
 from ...base_model import Result
 from .data_source import test_db_connection
@@ -21,10 +17,6 @@ router = APIRouter(prefix="/configure")
 driver = nonebot.get_driver()
 
 port = driver.config.port
-
-BAT_FILE = Path() / "win启动.bat"
-
-FILE_NAME = ".configure_restart"
 
 
 @router.post(
@@ -80,13 +72,8 @@ async def _(setting: Setting) -> Result:
         Config.set_config("web-ui", "username", setting.username)
     Config.set_config("web-ui", "password", setting.password, True)
     to_env_file.write_text(env_text, encoding="utf-8")
-    if BAT_FILE.exists():
-        for file in os.listdir(Path()):
-            if file.startswith(FILE_NAME):
-                Path(file).unlink()
-        flag_file = Path() / f"{FILE_NAME}_{int(time.time())}"
-        flag_file.touch()
-    return Result.ok(BAT_FILE.exists(), info="设置成功，请重启波奇以完成配置！")
+    issue_restart_ticket("webui.configure", ttl_seconds=10 * 60)
+    return Result.ok(True, info="设置成功，请重启波奇以完成配置！")
 
 
 @router.get(
@@ -102,13 +89,6 @@ async def _(db_url: str) -> Result:
     return Result.ok(info="数据库连接成功!")
 
 
-async def run_restart_command(bat_path: Path, port: int):
-    """在后台执行重启命令"""
-    await asyncio.sleep(1)  # 确保 FastAPI 已返回响应
-    subprocess.Popen([bat_path, str(port)], shell=True)  # noqa: ASYNC220
-    sys.exit(0)  # 退出当前进程
-
-
 @router.post(
     "/restart",
     response_model=Result,
@@ -116,19 +96,10 @@ async def run_restart_command(bat_path: Path, port: int):
     description="重启",
 )
 async def _() -> Result:
-    if not BAT_FILE.exists():
-        return Result.fail("自动重启仅支持意见整合包，请尝试手动重启")
-    flag_file = next(
-        (Path() / file for file in os.listdir(Path()) if file.startswith(FILE_NAME)),
-        None,
+    ok, message = await request_restart(
+        "webui.configure",
+        require_ticket="webui.configure",
     )
-    if not flag_file or not flag_file.exists():
-        return Result.fail("重启标志文件不存在...")
-    set_time = flag_file.name.split("_")[-1]
-    if time.time() - float(set_time) > 10 * 60:
-        return Result.fail("重启标志文件已过期，请重新设置配置。")
-    flag_file.unlink()
-    try:
-        return Result.ok(info="执行重启命令成功")
-    finally:
-        asyncio.create_task(run_restart_command(BAT_FILE, port))  # noqa: RUF006
+    if not ok:
+        return Result.fail(message)
+    return Result.ok(info=message)

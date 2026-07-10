@@ -1,0 +1,103 @@
+<script src="{{ asset('js/echarts.min.js') }}"></script>
+<style>
+    {% include './_base.css' %}
+    {% include './overview.css' %}
+</style>
+    <div class="wrapper1">
+        <div class="header">
+            <img src="{{ asset('./img/bocchi.png') }}" style="z-index: 1;" class="bocchi" />
+            <div class="title" style="color: white;">小波奇银行</div>
+            <div class="title" style="top: 55px;">总览</div>
+            <div class="header-text3" style="left: 1px">Mahiro Bank</div>
+        </div>
+        <div class="content-border">
+            <img src="{{ asset('./img/hua.png') }}" class="hua" />
+            <div class="top-border" style="height: 20px;">
+            </div>
+            <div class="content">
+                <p style="margin-bottom: 0; font-size: 20px;">银行统计信息：</p>
+                <p class="tip">Bank Statistics Overview</p>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-title">总用户数</div>
+                        <div><span class="stat-value">{{data['user_count']}}</span><span class="stat-unit">位</span></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-title">总存款金额</div>
+                        <div><span class="stat-value">{{data['amount_sum']}}</span><span class="stat-unit">金币</span></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-title">今日新增存款</div>
+                        <div><span class="stat-value">{{data['today_count']}}</span><span class="stat-unit">条</span></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-title">日均存款</div>
+                        <div><span class="stat-value">{{data['day_amount']}}</span><span class="stat-unit">金币</span></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-title">活跃用户</div>
+                        <div><span class="stat-value">{{data['active_user_count']}}</span><span class="stat-unit">位</span></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-title">累计收益</div>
+                        <div><span class="stat-value">{{data['interest_amount']}}</span><span class="stat-unit">金币</span></div>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="stat-title">近7日存款趋势</div>
+                    <div
+                        style="height: 200px; background: #f9f9f9; display: flex; justify-content: center; align-items: center; color: #999;">
+                       <div id="chart" class="chart"></div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 20px; font-size: 14px; color: #888; text-align: center;">
+                    最后更新时间: <span id="full-update-time">{{data['create_time']}}</span> 
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script type="text/javascript">
+    var myChart = echarts.init(document.getElementById('chart'));
+    var option = {
+            backgroundColor: "#fff",
+	    grid: {
+          top: "10%",
+          bottom: "20%",
+          left: "15%",
+          right: "15%",
+        },
+        animation: false,
+        xAxis: {
+            type: "category",
+            data: {{data.e_data|tojson}},
+	        axisLabel: {
+                interval: 0,
+                rotate: 10,
+            },
+        },
+        yAxis: {
+            type: "value",
+        },
+        series: [{
+            data: {{data.e_amount|tojson}},
+            type: "line",
+            smooth: true,
+            lineStyle: {
+                width: 2
+            },
+            label: {
+                normal: {
+                show: true,
+                position: 'top',
+                }
+            }
+        },],
+    };
+
+
+    myChart.setOption(option);
+</script>

@@ -5,7 +5,7 @@ class NJUIT_Config(BaseModel):
     topic_num: int = 10
     comment_num: int = 10
     xg_headers: dict[str,str]= {
-      "Authorization": "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJ0ZW5hbnRJZCI6OSwic2Nob29sSUQiOjEwNzU3LCJzY2hvb2wiOiJcdTUzNTdcdTRlYWNcdTVkZTVcdTRlMWFcdTgwNGNcdTRlMWFcdTYyODBcdTY3MmZcdTU5MjdcdTViNjYiLCJ1dWlkIjo5NTQ0ODA2MTAsImlhdCI6MTc1NzU1NTU3MywiZXhwIjoxNzYwMTQ3NTczfQ.YnoP61kMtxnUNr4CCkLFQPer7AWfx1EqzKu0iGmjjA7jhyXxJUtXXbMA4kJwdUFr--X_C8MqsD69w5-Op7GTogppRv2WiOsHRhzTOVUmlUsjdazk55DQSo7cVC8GPvZJeIRQ0gJ_5bMDjDF59Aka87nDWoMxmh19bAlgpaNZfkA",
+      "Authorization": "Bearer -",
       "Tenant": "9",
     }
     xg_latest_url:str = "https://api.zxs-bbs.cn/api/client/topics?page=1"

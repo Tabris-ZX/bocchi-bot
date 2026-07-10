@@ -1,8 +1,11 @@
 from dataclasses import dataclass
 import time
 from typing import Any, Generic, TypeVar
+import weakref
 
 T = TypeVar("T")
+
+DEFAULT_CACHE_MAX_ITEMS = 10000
 
 
 @dataclass
@@ -16,16 +19,21 @@ class CacheData(Generic[T]):
 class CacheDict(Generic[T]):
     """缓存字典类，提供类似普通字典的接口，数据只存储在内存中"""
 
-    def __init__(self, name: str, expire: int = 0):
+    _instances: weakref.WeakSet = weakref.WeakSet()
+
+    def __init__(self, name: str, expire: int = 0, max_items: int | None = None):
         """初始化缓存字典
 
         参数:
             name: 字典名称
             expire: 过期时间（秒），默认为0表示永不过期
+            max_items: 最大缓存项数，None 使用统一默认值，0 表示不限制
         """
         self.name = name.upper()
         self.expire = expire
+        self.max_items = DEFAULT_CACHE_MAX_ITEMS if max_items is None else max_items
         self._data: dict[str, CacheData[T]] = {}
+        self.__class__._instances.add(self)
 
     def expire_time(self, key: str) -> float:
         """获取字典项的过期时间"""
@@ -37,7 +45,7 @@ class CacheDict(Generic[T]):
             return 0
         return data.expire_time
 
-    def __getitem__(self, key: str) -> T | None:
+    def __getitem__(self, key: str) -> T:
         """获取字典项
 
         参数:
@@ -47,8 +55,11 @@ class CacheDict(Generic[T]):
             T: 字典值
         """
         if value := self._data.get(key):
-            return value.value if self.expire_time(key) else None
-        return None
+            if value.expire_time > 0 and value.expire_time < time.time():
+                del self._data[key]
+                raise KeyError(f"键 {key} 已过期")
+            return value.value
+        raise KeyError(f"键 {key} 不存在")
 
     def __setitem__(self, key: str, value: T) -> None:
         """设置字典项
@@ -59,6 +70,7 @@ class CacheDict(Generic[T]):
         """
         expire_time = time.time() + self.expire if self.expire > 0 else 0
         self._data[key] = CacheData(value=value, expire_time=expire_time)
+        self._enforce_limit()
 
     def __delitem__(self, key: str) -> None:
         """删除字典项
@@ -78,11 +90,13 @@ class CacheDict(Generic[T]):
         返回:
             bool: 是否存在
         """
-        if key not in self._data:
+        data = self._data.get(key)
+        if data is None:
             return False
-
-        # 检查是否过期
-        return bool(self.expire_time(key))
+        if data.expire_time > 0 and data.expire_time < time.time():
+            del self._data[key]
+            return False
+        return True
 
     def get(self, key: str, default: Any = None) -> T | None:
         """获取字典项，如果不存在返回默认值
@@ -94,8 +108,12 @@ class CacheDict(Generic[T]):
         返回:
             Any: 字典值或默认值
         """
-        value = self[key]
-        return default if value is None else value
+        if value := self._data.get(key):
+            if value.expire_time > 0 and value.expire_time < time.time():
+                del self._data[key]
+                return default
+            return default if value.value is None else value.value
+        return default
 
     def set(self, key: str, value: Any, expire: int | None = None):
         """设置字典项
@@ -113,6 +131,7 @@ class CacheDict(Generic[T]):
             expire_time = time.time() + self.expire
 
         self._data[key] = CacheData(value=value, expire_time=expire_time)
+        self._enforce_limit()
 
     def pop(self, key: str, default: Any = None) -> T:
         """删除并返回字典项
@@ -124,21 +143,44 @@ class CacheDict(Generic[T]):
         返回:
             Any: 字典值或默认值
         """
-        if key not in self._data:
+        data = self._data.get(key)
+        if data is None:
             return default
-
-        data = self._data.pop(key)
-
-        # 检查是否过期
         if data.expire_time > 0 and data.expire_time < time.time():
             del self._data[key]
             return default
-
+        del self._data[key]
         return data.value
 
     def clear(self) -> None:
         """清空字典"""
         self._data.clear()
+
+    def stats(self) -> dict[str, int]:
+        """返回当前缓存条目统计。"""
+        self._clean_expired()
+        return {"items": len(self._data), "max_items": self.max_items}
+
+    @classmethod
+    def stats_all(cls) -> dict[str, dict[str, int]]:
+        """返回所有 CacheDict 实例的条目统计。"""
+        result: dict[str, dict[str, int]] = {}
+        for cache in list(cls._instances):
+            stats = cache.stats()
+            if stats["items"]:
+                result[cache.name] = stats
+        return result
+
+    @classmethod
+    def clear_all(cls) -> dict[str, int]:
+        """清空所有 CacheDict，返回各缓存清理的条目数。"""
+        result: dict[str, int] = {}
+        for cache in list(cls._instances):
+            size = len(cache._data)
+            if size:
+                cache.clear()
+                result[cache.name] = result.get(cache.name, 0) + size
+        return result
 
     def keys(self) -> list[str]:
         """获取所有键
@@ -181,6 +223,12 @@ class CacheDict(Generic[T]):
         for key in expired_keys:
             del self._data[key]
 
+    def _enforce_limit(self) -> None:
+        if self.max_items <= 0:
+            return
+        while len(self._data) > self.max_items:
+            self._data.pop(next(iter(self._data)))
+
     def __len__(self) -> int:
         """获取字典长度
 
@@ -200,245 +248,3 @@ class CacheDict(Generic[T]):
         # 清理过期的键
         self._clean_expired()
         return f"CacheDict({self.name}, {len(self._data)} items)"
-
-
-class CacheList(Generic[T]):
-    """缓存列表类，提供类似普通列表的接口，数据只存储在内存中"""
-
-    def __init__(self, name: str, expire: int = 0):
-        """初始化缓存列表
-
-        参数:
-            name: 列表名称
-            expire: 过期时间（秒），默认为0表示永不过期
-        """
-        self.name = name.upper()
-        self.expire = expire
-        self._data: list[CacheData[T]] = []
-        self._expire_time = 0
-
-        # 如果设置了过期时间，计算整个列表的过期时间
-        if self.expire > 0:
-            self._expire_time = time.time() + self.expire
-
-    def __getitem__(self, index: int) -> T:
-        """获取列表项
-
-        参数:
-            index: 列表索引
-
-        返回:
-            T: 列表值
-        """
-        # 检查整个列表是否过期
-        if self._is_expired():
-            self.clear()
-            raise IndexError(f"列表索引 {index} 超出范围")
-
-        if 0 <= index < len(self._data):
-            return self._data[index].value
-        raise IndexError(f"列表索引 {index} 超出范围")
-
-    def __setitem__(self, index: int, value: T):
-        """设置列表项
-
-        参数:
-            index: 列表索引
-            value: 列表值
-        """
-        # 检查整个列表是否过期
-        if self._is_expired():
-            self.clear()
-
-        # 确保索引有效
-        while len(self._data) <= index:
-            raise IndexError(f"列表索引 {index} 超出范围")
-        self._data[index] = CacheData(value=value)
-
-        # 更新过期时间
-        self._update_expire_time()
-
-    def __delitem__(self, index: int):
-        """删除列表项
-
-        参数:
-            index: 列表索引
-        """
-        # 检查整个列表是否过期
-        if self._is_expired():
-            self.clear()
-            raise IndexError(f"列表索引 {index} 超出范围")
-
-        if not 0 <= index < len(self._data):
-            raise IndexError(f"列表索引 {index} 超出范围")
-        del self._data[index]
-        # 更新过期时间
-        self._update_expire_time()
-
-    def __len__(self) -> int:
-        """获取列表长度
-
-        返回:
-            int: 列表长度
-        """
-        # 检查整个列表是否过期
-        if self._is_expired():
-            self.clear()
-        return len(self._data)
-
-    def append(self, value: T):
-        """添加列表项
-
-        参数:
-            value: 列表值
-        """
-        # 检查整个列表是否过期
-        if self._is_expired():
-            self.clear()
-
-        self._data.append(CacheData(value=value))
-
-        # 更新过期时间
-        self._update_expire_time()
-
-    def extend(self, values: list[T]):
-        """扩展列表
-
-        参数:
-            values: 要添加的值列表
-        """
-        # 检查整个列表是否过期
-        if self._is_expired():
-            self.clear()
-
-        self._data.extend([CacheData(value=v) for v in values])
-
-        # 更新过期时间
-        self._update_expire_time()
-
-    def insert(self, index: int, value: T):
-        """插入列表项
-
-        参数:
-            index: 插入位置
-            value: 列表值
-        """
-        # 检查整个列表是否过期
-        if self._is_expired():
-            self.clear()
-
-        self._data.insert(index, CacheData(value=value))
-
-        # 更新过期时间
-        self._update_expire_time()
-
-    def pop(self, index: int = -1) -> T:
-        """删除并返回列表项
-
-        参数:
-            index: 列表索引，默认为最后一项
-
-        返回:
-            Any: 列表值
-        """
-        # 检查整个列表是否过期
-        if self._is_expired():
-            self.clear()
-            raise IndexError("从空列表中弹出")
-
-        if not self._data:
-            raise IndexError("从空列表中弹出")
-
-        item = self._data.pop(index)
-
-        # 更新过期时间
-        self._update_expire_time()
-
-        return item.value
-
-    def remove(self, value: T):
-        """删除第一个匹配的列表项
-
-        参数:
-            value: 要删除的值
-        """
-        # 检查整个列表是否过期
-        if self._is_expired():
-            self.clear()
-            raise ValueError(f"{value} 不在列表中")
-
-        # 查找匹配的项
-        for i, item in enumerate(self._data):
-            if item.value == value:
-                del self._data[i]
-                # 更新过期时间
-                self._update_expire_time()
-                return
-
-        raise ValueError(f"{value} 不在列表中")
-
-    def clear(self) -> None:
-        """清空列表"""
-        self._data.clear()
-        # 重置过期时间
-        self._update_expire_time()
-
-    def index(self, value: T, start: int = 0, end: int | None = None) -> int:
-        """查找值的索引
-
-        参数:
-            value: 要查找的值
-            start: 起始索引
-            end: 结束索引
-
-        返回:
-            int: 索引位置
-        """
-        # 检查整个列表是否过期
-        if self._is_expired():
-            self.clear()
-            raise ValueError(f"{value} 不在列表中")
-
-        end = end if end is not None else len(self._data)
-
-        for i in range(start, min(end, len(self._data))):
-            if self._data[i].value == value:
-                return i
-
-        raise ValueError(f"{value} 不在列表中")
-
-    def count(self, value: T) -> int:
-        """计算值出现的次数
-
-        参数:
-            value: 要计数的值
-
-        返回:
-            int: 出现次数
-        """
-        # 检查整个列表是否过期
-        if self._is_expired():
-            self.clear()
-            return 0
-
-        # sourcery skip: simplify-constant-sum
-        return sum(1 for item in self._data if item.value == value)
-
-    def _is_expired(self) -> bool:
-        """检查整个列表是否过期"""
-        return self._expire_time > 0 and self._expire_time < time.time()
-
-    def _update_expire_time(self):
-        """更新过期时间"""
-        self._expire_time = time.time() + self.expire if self.expire > 0 else 0
-
-    def __str__(self) -> str:
-        """字符串表示
-
-        返回:
-            str: 字符串表示
-        """
-        # 检查整个列表是否过期
-        if self._is_expired():
-            self.clear()
-        return f"CacheList({self.name}, {len(self._data)} items)"

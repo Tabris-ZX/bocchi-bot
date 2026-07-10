@@ -7,7 +7,7 @@ from bocchi.utils.enum import BlockType, PluginType
 from bocchi.utils.manager.virtual_env_package_manager import VirtualEnvPackageManager
 
 from ....base_model import Result
-from ....utils import authentication, clear_help_image
+from ....utils import authentication
 from .data_source import ApiDataSource
 from .model import (
     BatchUpdatePlugins,
@@ -52,20 +52,20 @@ async def _(
 async def _() -> Result[PluginCount]:
     try:
         plugin_count = PluginCount()
-        plugin_count.normal = await DbPluginInfo.filter(
-            plugin_type=PluginType.NORMAL, load_status=True
-        ).count()
-        plugin_count.admin = await DbPluginInfo.filter(
-            plugin_type__in=[PluginType.ADMIN, PluginType.SUPER_AND_ADMIN],
+        plugins = await DbPluginInfo.get_plugins(
             load_status=True,
-        ).count()
-        plugin_count.superuser = await DbPluginInfo.filter(
-            plugin_type__in=[PluginType.SUPERUSER, PluginType.SUPER_AND_ADMIN],
-            load_status=True,
-        ).count()
-        plugin_count.other = await DbPluginInfo.filter(
-            plugin_type__in=[PluginType.HIDDEN, PluginType.DEPENDANT], load_status=True
-        ).count()
+            filter_parent=False,
+        )
+        for plugin in plugins:
+            plugin_type = plugin.plugin_type
+            if plugin_type == PluginType.NORMAL:
+                plugin_count.normal += 1
+            if plugin_type in {PluginType.ADMIN, PluginType.SUPER_AND_ADMIN}:
+                plugin_count.admin += 1
+            if plugin_type in {PluginType.SUPERUSER, PluginType.SUPER_AND_ADMIN}:
+                plugin_count.superuser += 1
+            if plugin_type in {PluginType.HIDDEN, PluginType.DEPENDANT}:
+                plugin_count.other += 1
         return Result.ok(plugin_count, "拿到信息啦!")
     except Exception as e:
         logger.error(f"{router.prefix}/get_plugin_count 调用错误", "WebUi", e=e)
@@ -82,7 +82,6 @@ async def _() -> Result[PluginCount]:
 async def _(param: UpdatePlugin) -> Result:
     try:
         await ApiDataSource.update_plugin(param)
-        clear_help_image()
         return Result.ok(info="已经帮你写好啦!")
     except (ValueError, KeyError):
         return Result.fail("插件数据不存在...")
@@ -110,7 +109,6 @@ async def _(param: PluginSwitch) -> Result:
             db_plugin.block_type = None
             db_plugin.status = True
         await db_plugin.save()
-        clear_help_image()
         return Result.ok(info="成功改变了开关状态!")
     except Exception as e:
         logger.error(f"{router.prefix}/change_switch 调用错误", "WebUi", e=e)
@@ -127,10 +125,10 @@ async def _(param: PluginSwitch) -> Result:
 async def _() -> Result[list[str]]:
     try:
         menu_type_list = []
-        result = (
-            await DbPluginInfo.filter(load_status=True)
-            .annotate()
-            .values_list("menu_type", flat=True)
+        result = await DbPluginInfo.get_plugins_values_list(
+            "menu_type",
+            load_status=True,
+            filter_parent=False,
         )
         for r in result:
             if r not in menu_type_list and r:
@@ -177,7 +175,6 @@ async def _(
             updated_count=result_dict["updated_count"],
             errors=result_dict["errors"],
         )
-        clear_help_image()
         return Result.ok(result_model, "插件配置更新完成")
     except Exception as e:
         logger.error(f"{router.prefix}/plugins/batch_update 调用错误", "WebUi", e=e)
@@ -197,7 +194,6 @@ async def _(payload: RenameMenuTypePayload) -> Result[str]:
             old_name=payload.old_name, new_name=payload.new_name
         )
         if result.get("success"):
-            clear_help_image()
             return Result.ok(
                 info=result.get(
                     "info",

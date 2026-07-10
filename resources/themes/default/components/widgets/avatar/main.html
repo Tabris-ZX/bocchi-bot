@@ -1,0 +1,30 @@
+{% from 'partials/_component_macros.jinja' import wrapper %}
+{% macro render_avatar(avatar_data) %}
+<img class="avatar-wrapper {{ avatar_data.shape }}"
+     src="{{ avatar_data.src }}"
+     width="{{ avatar_data.size }}"
+     height="{{ avatar_data.size }}"
+     style="width:{{ avatar_data.size }}px; height:{{ avatar_data.size }}px;" />
+{% endmacro %}
+
+{% if data.component_type == 'avatar' %}
+    {% call wrapper(data, 'avatar-container') %}
+        {{ render_avatar(data) }}
+    {% endcall %}
+{% elif data.component_type == 'avatar_group' %}
+    {% call wrapper(data, 'avatar-group-container') %}
+        <div class="avatar-group">
+            {% set display_limit = data.max_count if data.max_count is not none else data.avatars|length %}
+            {% for avatar in data.avatars[:display_limit] %}
+                <div style="margin-left: {{ 0 if loop.first else data.spacing }}px;">
+                    {{ render_avatar(avatar) }}
+                </div>
+            {% endfor %}
+            {% if data.max_count is not none and data.avatars|length > data.max_count %}
+                <div class="avatar-group-plus" style="margin-left: {{ data.spacing }}px; width:{{ data.avatars[0].size }}px; height:{{ data.avatars[0].size }}px;">
+                    +{{ data.avatars|length - data.max_count }}
+                </div>
+            {% endif %}
+        </div>
+    {% endcall %}
+{% endif %}

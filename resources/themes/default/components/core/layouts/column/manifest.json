@@ -1,0 +1,8 @@
+{
+  "name": "垂直列布局",
+  "entrypoint": "main.html",
+  "styles": "style.css",
+  "render_options": {
+    "viewport": { "width": 800, "height": 10 }
+  }
+}

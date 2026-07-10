@@ -7,6 +7,7 @@ from tortoise.exceptions import DoesNotExist
 from bocchi.configs.config import Config
 from bocchi.configs.utils import ConfigGroup
 from bocchi.models.plugin_info import PluginInfo as DbPluginInfo
+from bocchi.services.cache.runtime_cache import PluginInfoMemoryCache
 from bocchi.utils.enum import BlockType, PluginType
 
 from .model import (
@@ -33,14 +34,19 @@ class ApiDataSource:
             list[PluginInfo]: 插件数据列表
         """
         plugin_list: list[PluginInfo] = []
-        query = DbPluginInfo
+        filters = {}
         if plugin_type:
-            query = query.filter(plugin_type__in=plugin_type, load_status=True)
+            filters["plugin_type__in"] = plugin_type
         if menu_type:
-            query = query.filter(menu_type=menu_type, load_status=True)
-        plugins = await query.all()
+            filters["menu_type"] = menu_type
+        plugins = await DbPluginInfo.get_plugins(
+            load_status=True,
+            filter_parent=False,
+            **filters,
+        )
         for plugin in plugins:
             plugin_info = PluginInfo(
+                id=plugin.id,
                 module=plugin.module,
                 plugin_name=plugin.name,
                 default_status=plugin.default_status,
@@ -105,10 +111,19 @@ class ApiDataSource:
         other_update_fields = set()
         updated_count = 0
         errors = []
+        modules = [item.module for item in params.updates]
+        plugin_records = await DbPluginInfo.get_plugins(
+            module__in=modules,
+            load_status=None,
+            filter_parent=False,
+        )
+        plugin_map = {plugin.module: plugin for plugin in plugin_records}
 
         for item in params.updates:
             try:
-                db_plugin = await DbPluginInfo.get(module=item.module)
+                db_plugin = plugin_map.get(item.module)
+                if db_plugin is None:
+                    raise DoesNotExist()
                 plugin_changed_other = False
                 plugin_changed_block = False
 
@@ -158,6 +173,8 @@ class ApiDataSource:
                     plugins_to_update_other_fields, list(other_update_fields)
                 )
                 bulk_updated_count = len(plugins_to_update_other_fields)
+                for plugin in plugins_to_update_other_fields:
+                    await PluginInfoMemoryCache.upsert_from_model(plugin)
             except Exception as e_bulk:
                 errors.append(
                     {
@@ -242,6 +259,8 @@ class ApiDataSource:
             updated_count = await DbPluginInfo.filter(menu_type=old_name).update(
                 menu_type=new_name
             )
+            if updated_count:
+                await PluginInfoMemoryCache.refresh()
             return {"success": True, "updated_count": updated_count}
         except Exception as e:
             # 可以添加更详细的日志记录
@@ -269,6 +288,7 @@ class ApiDataSource:
                 cls.__build_plugin_config(module, cfg, config) for cfg in config.configs
             )
         return PluginDetail(
+            id=db_plugin.id,
             module=module,
             plugin_name=db_plugin.name,
             default_status=db_plugin.default_status,

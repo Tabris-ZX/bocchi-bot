@@ -1,55 +1,68 @@
-import asyncio
+import re
 import time
-
-from nonebot_plugin_alconna import UniMsg
 
 from bocchi.models.group_console import GroupConsole
 from bocchi.models.plugin_info import PluginInfo
-from bocchi.services.data_access import DataAccess
-from bocchi.services.db_context import DB_TIMEOUT_SECONDS
+from bocchi.services.cache.runtime_cache import GroupSnapshot
 from bocchi.services.log import logger
-from bocchi.utils.utils import EntityIDs
 
 from .config import LOGGER_COMMAND, WARNING_THRESHOLD, SwitchEnum
+from .context import PermissionContext
 from .exception import SkipPluginException
 
+_GROUP_WAKE_PATTERN = re.compile(r"^醒来$", re.IGNORECASE)
+_GROUP_WAKE_CANONICAL_PATTERN = re.compile(r"^group-status\s+wake$", re.IGNORECASE)
 
-async def auth_group(plugin: PluginInfo, entity: EntityIDs, message: UniMsg):
+
+def _is_group_wake_command(plugin: PluginInfo, text: str) -> bool:
+    if "plugin_switch" not in (plugin.module or ""):
+        return False
+    normalized = re.sub(r"\s+", " ", (text or "").strip())
+    if not normalized:
+        return False
+    if (
+        _GROUP_WAKE_PATTERN.match(normalized) is not None
+        or _GROUP_WAKE_CANONICAL_PATTERN.match(normalized) is not None
+    ):
+        return True
+    # 兼容 to_me 前缀场景：如“波奇 醒来”
+    tokens = normalized.split(" ")
+    return len(tokens) == 2 and tokens[-1] == SwitchEnum.ENABLE
+
+
+async def auth_group(
+    plugin: PluginInfo,
+    group: GroupConsole | GroupSnapshot | None,
+    text: str | None,
+    group_id: str | None,
+    *,
+    context: PermissionContext | None = None,
+):
     """群黑名单检测 群总开关检测
 
     参数:
         plugin: PluginInfo
-        entity: EntityIDs
+        group: GroupConsole
         message: UniMsg
     """
-    start_time = time.time()
+    if context is not None:
+        group = context.group or group
+        text = context.plain_text
+        group_id = context.group_id
 
-    if not entity.group_id:
+    if not group_id:
         return
 
+    start_time = time.time()
+
     try:
-        text = message.extract_plain_text()
-
-        # 从数据库或缓存中获取群组信息
-        group_dao = DataAccess(GroupConsole)
-
-        try:
-            group: GroupConsole | None = await asyncio.wait_for(
-                group_dao.safe_get_or_none(
-                    group_id=entity.group_id, channel_id__isnull=True
-                ),
-                timeout=DB_TIMEOUT_SECONDS,
-            )
-        except asyncio.TimeoutError:
-            logger.error("查询群组信息超时", LOGGER_COMMAND, session=entity.user_id)
-            # 超时时不阻塞，继续执行
-            return
+        text = text or ""
 
         if not group:
             raise SkipPluginException("群组信息不存在...")
         if group.level < 0:
             raise SkipPluginException("群组黑名单, 目标群组群权限权限-1...")
-        if text.strip() != SwitchEnum.ENABLE and not group.status:
+        if not _is_group_wake_command(plugin, text) and not group.status:
             raise SkipPluginException("群组休眠状态...")
         if plugin.level > group.level:
             raise SkipPluginException(
@@ -63,6 +76,5 @@ async def auth_group(plugin: PluginInfo, entity: EntityIDs, message: UniMsg):
             logger.warning(
                 f"auth_group 耗时: {elapsed:.3f}s, plugin={plugin.module}",
                 LOGGER_COMMAND,
-                session=entity.user_id,
-                group_id=entity.group_id,
+                group_id=group_id,
             )

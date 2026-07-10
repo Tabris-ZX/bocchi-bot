@@ -1,0 +1,21 @@
+.card-wrapper {
+    background-color: var(--color-background-main);
+    border-width: 1px;
+    border-style: solid;
+    border-color: var(--color-border-light);
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+}
+.card-header {
+    padding: var(--card-header-padding, 15px 20px);
+    border-bottom: 1px solid var(--color-border-light);;
+}
+.card-content {
+    padding: var(--card-padding, 20px);
+}
+.card-footer {
+    padding: 15px 20px;
+    background-color: var(--color-background-card);
+    border-top: 1px solid var(--color-border-light);
+}

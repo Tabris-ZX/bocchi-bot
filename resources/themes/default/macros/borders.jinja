@@ -1,0 +1,443 @@
+{# 
+    Style: Soft Offset
+    双层边框，一层实线一层阴影
+#}
+{% macro soft_card(class='', style='') %}
+<div class="{{ class }}" style="position: relative; {{ style }}">
+    <svg style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0;">
+        <rect x="8" y="8" width="calc(100% - 10px)" height="calc(100% - 10px)" rx="16" fill="var(--color-background-card, #fce4ec)" />
+        <rect x="2" y="2" width="calc(100% - 10px)" height="calc(100% - 10px)" rx="16" fill="var(--color-background-main, #fff)" stroke="var(--color-primary, #f67186)" stroke-width="2" />
+    </svg>
+    <div style="position: relative; z-index: 10; padding: 24px;">
+        {{ caller() }}
+    </div>
+</div>
+{% endmacro %}
+
+
+{# 31. 饼干波浪 (Biscuit/Scalloped) #}
+{% macro box_biscuit(class='', style='', bg='#fff', border_color='#f3a683') %}
+<div class="{{ class }}" style="position: relative; padding: 24px; background: {{ bg }}; border: 4px solid {{ border_color }}; border-radius: 16px; {{ style }}">
+    <!-- 使用 CSS mask 或 box-shadow 模拟波浪边有些复杂，这里用点状边框模拟简易饼干效果 -->
+    <div style="position: absolute; top: -6px; left: -6px; right: -6px; bottom: -6px; border: 6px dotted {{ border_color }}; border-radius: 20px; pointer-events: none;"></div>
+    <div style="position: relative; z-index: 10;">
+        {{ caller() }}
+    </div>
+</div>
+{% endmacro %}
+
+{# 32. 小熊耳朵 (Bear Ears) #}
+{% macro box_bear(class='', style='', bg='#fff', border_color='#e1b12c') %}
+<div class="{{ class }}" style="position: relative; margin-top: 16px; {{ style }}">
+    <!-- 左耳 -->
+    <div style="position: absolute; top: -12px; left: 16px; width: 32px; height: 32px; border-radius: 50%; border: 2px solid {{ border_color }}; border-bottom: 0; background: {{ bg }};"></div>
+    <!-- 右耳 -->
+    <div style="position: absolute; top: -12px; right: 16px; width: 32px; height: 32px; border-radius: 50%; border: 2px solid {{ border_color }}; border-bottom: 0; background: {{ bg }};"></div>
+    <!-- 主体 -->
+    <div style="position: relative; z-index: 10; padding: 20px; border-radius: 16px; border: 2px solid {{ border_color }}; background: {{ bg }};">
+        {{ caller() }}
+    </div>
+</div>
+{% endmacro %}
+
+{# 33. 云朵气泡 (Cloud Bubble) #}
+{% macro box_cloud_soft(class='', style='', bg='#f0f9ff') %}
+<div class="{{ class }}" style="position: relative; padding: 24px; background: {{ bg }}; border-radius: 20px; box-shadow: 4px 4px 0px #bde0fe; {{ style }}">
+    {{ caller() }}
+</div>
+{% endmacro %}
+
+{# 34. 手绘杂乱线框 (Messy Doodle) #}
+{% macro box_doodle(class='', style='', border_color='#333') %}
+<div class="{{ class }}" style="position: relative; padding: 20px; {{ style }}">
+    <!-- 第一层框 -->
+    <div style="position: absolute; top: 0; right: 0; bottom: 0; left: 0; border: 2px solid {{ border_color }}; border-radius: 8px; transform: rotate(1deg);"></div>
+    <!-- 第二层框 -->
+    <div style="position: absolute; top: 0; right: 0; bottom: 0; left: 0; border: 2px solid {{ border_color }}; border-radius: 8px; transform: rotate(-1deg) scale(0.98); opacity: 0.7;"></div>
+    <div style="position: relative; z-index: 10;">
+        {{ caller() }}
+    </div>
+</div>
+{% endmacro %}
+
+{# 35. 拍立得照片 (Polaroid Cute) #}
+{% macro box_polaroid_cute(class='', style='') %}
+<div class="{{ class }}" style="position: relative; background-color: #fff; padding: 12px 12px 40px 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); transform: rotate(1deg); border-radius: 4px; {{ style }}">
+    <div style="position: absolute; top: 8px; left: 50%; transform: translateX(-50%) rotate(-1deg); width: 80px; height: 16px; background-color: rgba(254, 226, 226, 0.5);"></div>
+    <div style="overflow: hidden; border-radius: 2px; background-color: #f9fafb; border: 1px solid #f3f4f6;">
+        {{ caller() }}
+    </div>
+</div>
+{% endmacro %}
+
+{# 36. 糖果条纹框 (Candy Cane) #}
+{% macro box_candy_stripe(class='', style='', color1='#ff9ff3', color2='#feca57') %}
+<div class="{{ class }}" style="padding: 4px; border-radius: 12px; background: repeating-linear-gradient(45deg, {{ color1 }}, {{ color1 }} 10px, {{ color2 }} 10px, {{ color2 }} 20px); {{ style }}">
+    <div style="background-color: #fff; border-radius: 10px; padding: 20px; height: 100%; box-sizing: border-box;">
+        {{ caller() }}
+    </div>
+</div>
+{% endmacro %}
+
+{# 37. 丝带缠绕 (Ribbon Wrapped) #}
+{% macro box_ribbon_wrap(class='', style='', ribbon_color='#ff6b6b') %}
+<div class="{{ class }}" style="position: relative; padding: 24px; background-color: #fff; border: 1px solid #e5e7eb; border-radius: 8px; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); {{ style }}">
+    <!-- 左上角丝带 -->
+    <div style="position: absolute; top: -4px; left: -4px; width: 48px; height: 48px; overflow: hidden;">
+        <div style="position: absolute; top: 12px; left: -24px; width: 64px; height: 16px; background: {{ ribbon_color }}; transform: rotate(-45deg); transform-origin: top right; text-align: center; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);"></div>
+    </div>
+    {{ caller() }}
+</div>
+{% endmacro %}
+
+{# 38. 像素对话框 (Pixel Speech) #}
+{% macro box_pixel_speech(class='', style='', bg='#fff', border='#000') %}
+<div class="{{ class }}"
+     style="background: {{ bg }};
+            position: relative; padding: 16px; margin-bottom: 16px; font-family: monospace; font-size: 14px;
+            box-shadow: -2px 0 0 0 {{ border }}, 2px 0 0 0 {{ border }}, 0 -2px 0 0 {{ border }}, 0 2px 0 0 {{ border }};
+            margin: 4px; {{ style }}">
+    {{ caller() }}
+    <!-- 像素尾巴 -->
+    <div style="position:absolute; bottom:-6px; left:20px; width:4px; height:4px; background:{{ border }}; box-shadow: 4px 2px 0 0 {{ border }}, 8px 4px 0 0 {{ border }};"></div>
+</div>
+{% endmacro %}
+
+{# 39. 虚线信封 (Air Mail) #}
+{% macro box_airmail(class='', style='') %}
+<div class="{{ class }}" style="position: relative; padding: 24px; background-color: #fff; border: 4px solid transparent; border-image: repeating-linear-gradient(45deg, #f44336 0, #f44336 10px, transparent 0, transparent 20px, #2196f3 20px, #2196f3 30px, transparent 0, transparent 40px) 20; {{ style }}">
+    {{ caller() }}
+</div>
+{% endmacro %}
+
+{# 40. 柔和内发光 (Soft Glow) #}
+{% macro box_soft_glow(class='', style='', color='#a29bfe') %}
+<div class="{{ class }}" style="position: relative; padding: 24px; border-radius: 16px; background-color: #fff; border: 2px solid transparent; box-shadow: 0 0 15px {{ color }}40, inset 0 0 20px {{ color }}20; border-color: {{ color }}40; {{ style }}">
+    {{ caller() }}
+</div>
+{% endmacro %}
+
+
+{#
+    Style: Tech HUD
+    四角括号 + 网格背景
+#}
+{% macro tech_box(class='', style='') %}
+<div class="{{ class }}" style="position: relative; padding: 16px; background: rgba(246, 113, 134, 0.05); {{ style }}">
+    <!-- 四角装饰 (使用 CSS border 实现自适应更稳健) -->
+    <div style="position: absolute; top: 0; left: 0; width: 16px; height: 16px; border-top: 2px solid var(--color-primary); border-left: 2px solid var(--color-primary);"></div>
+    <div style="position: absolute; top: 0; right: 0; width: 16px; height: 16px; border-top: 2px solid var(--color-primary); border-right: 2px solid var(--color-primary);"></div>
+    <div style="position: absolute; bottom: 0; left: 0; width: 16px; height: 16px; border-bottom: 2px solid var(--color-primary); border-left: 2px solid var(--color-primary);"></div>
+    <div style="position: absolute; bottom: 0; right: 0; width: 16px; height: 16px; border-bottom: 2px solid var(--color-primary); border-right: 2px solid var(--color-primary);"></div>
+    
+    <div style="position: relative; z-index: 10;">
+        {{ caller() }}
+    </div>
+</div>
+{% endmacro %}
+
+
+{#
+    Style: Chat Bubble
+    适用于机器人对话回复
+    参数:
+      - tail_position: 'left' | 'center' | 'right' (当前实现简化为固定 center)
+#}
+{% macro chat_bubble(class='', style='') %}
+<div class="{{ class }}" style="position: relative; background: transparent; {{ style }}">
+    {# 背景层：使用 CSS 实现圆角矩形，SVG 仅用于绘制尾巴，避免拉伸变形问题 #}
+    <div style="position: relative; background-color: #fff; border: 2px solid var(--color-primary); border-radius: 16px; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); z-index: 10; min-height: 60px;">
+        <div style="padding: 20px;">
+            {{ caller() }}
+        </div>
+    </div>
+    {# 尾巴层：绝对定位到底部 #}
+    <svg style="position: absolute; left: 50%; transform: translateX(-50%); bottom: -11px; z-index: 20; width: 24px; height: 16px;" viewBox="0 0 24 16">
+        <!-- 遮盖线（白色，遮住边框） -->
+        <path d="M0,0 L24,0 L12,16 Z" fill="#fff"/>
+        <!-- 边框线（仅绘制下半部分） -->
+        <path d="M0,0 L12,16 L24,0" fill="none" stroke="var(--color-primary)" stroke-width="2" stroke-linecap="round" />
+    </svg>
+</div>
+{% endmacro %}
+
+
+{#
+    Style: Cyber Tag Frame
+    适用于功能模块展示
+    参数:
+      - title: 标签栏文字
+#}
+{% macro cyber_frame(title='SYSTEM', class='', style='') %}
+<div class="{{ class }}" style="position: relative; padding-top: 40px; padding: 24px; border-left: 2px solid rgba(var(--color-primary-rgb), 0.3); border-right: 2px solid rgba(var(--color-primary-rgb), 0.3); border-bottom: 2px solid rgba(var(--color-primary-rgb), 0.3); background-color: rgba(var(--color-primary-rgb), 0.05); {{ style }}">
+    <!-- 顶部不规则边框 SVG -->
+    <svg style="position: absolute; top: 0; left: 0; width: 100%; height: 40px; pointer-events: none;" preserveAspectRatio="none">
+        <path d="M0,30 H120 L130,0 H0 Z" fill="var(--color-primary)" />
+        <line x1="130" y1="0" x2="100%" y2="0" stroke="var(--color-primary)" stroke-width="2" stroke-opacity="0.3" />
+        <rect x="96%" y="0" width="10" height="10" fill="var(--color-primary)" opacity="0.5" />
+        <rect x="92%" y="0" width="10" height="10" fill="var(--color-primary)" opacity="0.2" />
+    </svg>
+    
+    <!-- 标签文字 -->
+    <div style="position: absolute; top: 4px; left: 12px; font-weight: bold; color: #fff; font-size: 14px; letter-spacing: 0.05em;">
+        {{ title }}
+    </div>
+
+    <div style="position: relative; z-index: 10;">
+        {{ caller() }}
+    </div>
+</div>
+{% endmacro %}
+
+
+{#
+    Style: Notebook Paper
+    适用于长文本、日志
+#}
+{% macro notebook_paper(class='', style='') %}
+<div class="{{ class }}" style="position: relative; background-color: #fff; width: 100%; min-height: 200px; {{ style }}">
+    <!-- 横线背景 -->
+    <div style="position: absolute; top: 0; right: 0; bottom: 0; left: 0; pointer-events: none; background-image: linear-gradient(rgba(168, 209, 255, 0.5) 1px, transparent 1px); background-size: 100% 30px;">
+    </div>
+    <!-- 左侧红线 -->
+    <div style="position: absolute; top: 0; bottom: 0; left: 40px; width: 1px; background-color: #fca5a5; border-right: 1px solid rgba(252, 165, 165, 0.5); height: 100%; z-index: 0;"></div>
+    
+    <div style="position: relative; z-index: 10; padding-left: 56px; padding-right: 16px; padding-top: 8px; padding-bottom: 8px; line-height: 30px; color: #374151;">
+        {{ caller() }}
+    </div>
+</div>
+{% endmacro %}
+
+{#
+    Style: Retro Gaming (Pixel Art)
+    适用于: 游戏数据、RPG风格对话
+    特点: 通过多重 box-shadow 模拟像素边框，无需图片
+#}
+{% macro retro_card(class='', style='', bg_color='#fff', border_color='#333') %}
+<div class="{{ class }}"
+     style="background-color: {{ bg_color }};
+            position: relative; padding: 24px;
+            box-shadow:
+                -4px 0 0 0 {{ border_color }},
+                4px 0 0 0 {{ border_color }},
+                0 -4px 0 0 {{ border_color }},
+                0 4px 0 0 {{ border_color }},
+                -8px 0 0 0 {{ bg_color }},
+                8px 0 0 0 {{ bg_color }},
+                0 -8px 0 0 {{ bg_color }},
+                0 8px 0 0 {{ bg_color }};
+            margin: 8px;
+            font-family: 'Courier New', monospace;
+            {{ style }}">
+    {# 角落像素点 #}
+    <div style="position:absolute; top:-4px; left:-4px; width:4px; height:4px; background:{{ border_color }}; box-shadow: 0 0 0 4px {{ bg_color }};"></div>
+    <div style="position:absolute; top:-4px; right:-4px; width:4px; height:4px; background:{{ border_color }}; box-shadow: 0 0 0 4px {{ bg_color }};"></div>
+    <div style="position:absolute; bottom:-4px; left:-4px; width:4px; height:4px; background:{{ border_color }}; box-shadow: 0 0 0 4px {{ bg_color }};"></div>
+    <div style="position:absolute; bottom:-4px; right:-4px; width:4px; height:4px; background:{{ border_color }}; box-shadow: 0 0 0 4px {{ bg_color }};"></div>
+    
+    <div style="position: relative; z-index: 10;">
+        {{ caller() }}
+    </div>
+</div>
+{% endmacro %}
+
+{#
+    Style: Magic Girl / Cute
+    适用于: 个人信息、好感度面板
+#}
+{% macro magic_card(class='', style='') %}
+<div class="{{ class }}" style="position: relative; padding: 24px; border-radius: 12px; border: 2px solid #f9a8d4; background-color: rgba(253, 242, 248, 0.5); {{ style }}">
+    <!-- 内描边 -->
+    <div style="position: absolute; top: 4px; left: 4px; right: 4px; bottom: 4px; border: 1px dashed #fbcfe8; border-radius: 8px; pointer-events: none;"></div>
+    
+    <!-- 四角装饰 (星星) -->
+    <svg style="position: absolute; top: -12px; left: -12px; width: 24px; height: 24px; color: #facc15; fill: currentColor; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.1));" viewBox="0 0 24 24"><path d="M12 2l3 7h7l-5 5 2 7-7-5-7 5 2-7-5-5h7z"/></svg>
+    <svg style="position: absolute; top: -12px; right: -12px; width: 24px; height: 24px; color: #facc15; fill: currentColor; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.1));" viewBox="0 0 24 24"><path d="M12 2l3 7h7l-5 5 2 7-7-5-7 5 2-7-5-5h7z"/></svg>
+    <svg style="position: absolute; bottom: -12px; left: -12px; width: 24px; height: 24px; color: #facc15; fill: currentColor; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.1));" viewBox="0 0 24 24"><path d="M12 2l3 7h7l-5 5 2 7-7-5-7 5 2-7-5-5h7z"/></svg>
+    <svg style="position: absolute; bottom: -12px; right: -12px; width: 24px; height: 24px; color: #facc15; fill: currentColor; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.1));" viewBox="0 0 24 24"><path d="M12 2l3 7h7l-5 5 2 7-7-5-7 5 2-7-5-5h7z"/></svg>
+
+    <div style="position: relative; z-index: 10;">
+        {{ caller() }}
+    </div>
+</div>
+{% endmacro %}
+
+{# 11. MacOS 终端窗口 (Terminal Window) #}
+{% macro win_terminal(title='Terminal', class='', style='') %}
+<div class="{{ class }}" style="position: relative; overflow: hidden; border-radius: 8px; border: 1px solid #4b5563; background-color: #1e1e1e; {{ style }}">
+    <div style="display: flex; align-items: center; gap: 8px; background-color: #2d2d2d; padding: 8px 16px; border-bottom: 1px solid #374151;">
+        <div style="width: 12px; height: 12px; border-radius: 50%; background-color: #ff5f56;"></div>
+        <div style="width: 12px; height: 12px; border-radius: 50%; background-color: #ffbd2e;"></div>
+        <div style="width: 12px; height: 12px; border-radius: 50%; background-color: #27c93f;"></div>
+        <div style="flex: 1; text-align: center; font-size: 12px; color: #9ca3af; font-family: monospace;">{{ title }}</div>
+    </div>
+    <div style="padding: 16px; font-family: monospace; font-size: 14px; color: #d1d5db;">
+        {{ caller() }}
+    </div>
+</div>
+{% endmacro %}
+
+{# 12. 优惠券/票据 (Coupon) #}
+{% macro box_coupon(class='', style='', bg='#fff', border_color='#eee') %}
+<div class="{{ class }}" style="position: relative; padding: 24px; background: {{ bg }}; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1)); {{ style }}">
+    {# 左侧半圆缺口 #}
+    <div style="position:absolute; left:-10px; top:50%; transform:translateY(-50%); width:20px; height:20px; border-radius:50%; background:var(--color-background-main, #f0f2f5);"></div>
+    {# 右侧半圆缺口 #}
+    <div style="position:absolute; right:-10px; top:50%; transform:translateY(-50%); width:20px; height:20px; border-radius:50%; background:var(--color-background-main, #f0f2f5);"></div>
+    {# 虚线分割 #}
+    <div style="position:absolute; left:20px; right:20px; top:50%; border-top: 2px dashed {{ border_color }}; pointer-events:none; opacity:0.5;"></div>
+    <div style="position: relative; z-index: 10;">
+        {{ caller() }}
+    </div>
+</div>
+{% endmacro %}
+
+{# 13. 现代通知 (Notification Toast) #}
+{% macro box_toast(class='', style='', accent_color='var(--color-primary)') %}
+<div class="{{ class }}" style="position: relative; padding: 16px 16px 16px 24px; background-color: #fff; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); border-left: 4px solid {{ accent_color }}; {{ style }}">
+    {{ caller() }}
+</div>
+{% endmacro %}
+
+{# 14. 赛博朋克边框 (Cyberpunk) #}
+{% macro box_cyber(class='', style='', color='#f0db4f') %}
+<div class="{{ class }}" style="position: relative; padding: 4px; background: {{ color }}; clip-path: polygon(0 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%); {{ style }}">
+    <div style="background-color: #111827; padding: 20px; height: 100%; width: 100%; color: #fff; clip-path: polygon(0 0, 100% 0, 100% calc(100% - 19px), calc(100% - 19px) 100%, 0 100%);">
+        {{ caller() }}
+    </div>
+</div>
+{% endmacro %}
+
+{# 15. 便签纸 (Sticky Note) #}
+{% macro box_sticky(class='', style='', bg='#fff740') %}
+<div class="{{ class }}" style="position: relative; padding: 24px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); transform: rotate(1deg); background: {{ bg }}; color: #333; font-family: 'Comic Sans MS', cursive, sans-serif; {{ style }}">
+    <div style="position: absolute; top: 0; left: 0; width: 100%; height: 32px; background-color: rgba(0, 0, 0, 0.05);"></div>
+    {{ caller() }}
+</div>
+{% endmacro %}
+
+{# 16. 极简引用 (Minimal Quote) #}
+{% macro box_minimal_quote(class='', style='') %}
+<div class="{{ class }}" style="position: relative; padding-left: 32px; padding-top: 8px; padding-bottom: 8px; {{ style }}">
+    <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background-color: var(--color-primary); border-radius: 9999px;"></div>
+    <div style="position: absolute; left: 12px; top: 0; font-size: 36px; color: var(--color-primary); opacity: 0.2; line-height: 1;">"</div>
+    {{ caller() }}
+</div>
+{% endmacro %}
+
+{# 17. 虚线边框 (Dashed) #}
+{% macro box_dashed(class='', style='') %}
+<div class="{{ class }}" style="position: relative; padding: 16px; border-radius: 12px; border: 2px dashed rgba(var(--color-primary-rgb), 0.4); background-color: rgba(var(--color-primary-rgb), 0.05); {{ style }}">
+    {{ caller() }}
+</div>
+{% endmacro %}
+
+{# 18. 玻璃拟态 (Glassmorphism Light) #}
+{% macro box_glass_light(class='', style='') %}
+<div class="{{ class }}" style="position: relative; padding: 24px; border-radius: 16px; background: rgba(255, 255, 255, 0.4); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.6); box-shadow: 0 4px 6px rgba(0,0,0,0.05); {{ style }}">
+    {{ caller() }}
+</div>
+{% endmacro %}
+
+{# 19. 复古命令行 (Retro DOS) #}
+{% macro box_dos(class='', style='') %}
+<div class="{{ class }}" style="padding: 16px; background-color: #000; color: #4ade80; font-family: monospace; border: 2px solid #4b5563; box-shadow: 4px 4px 0 0 #888; {{ style }}">
+    {{ caller() }}
+</div>
+{% endmacro %}
+
+{# 20. 优雅信纸 (Elegant Paper) #}
+{% macro box_elegant(class='', style='') %}
+<div class="{{ class }}" style="position: relative; padding: 32px; background-color: #fdfbf7; border: 1px solid #e3dcd2; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); {{ style }}">
+    <div style="position: absolute; top: 8px; left: 8px; right: 8px; bottom: 8px; border: 1px solid #e3dcd2; pointer-events: none;"></div>
+    <div style="position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 64px; height: 4px; background-color: #e3dcd2;"></div>
+    <div style="position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 64px; height: 4px; background-color: #e3dcd2;"></div>
+    {{ caller() }}
+</div>
+{% endmacro %}
+
+{# 21. 漫画风格 (Comic) #}
+{% macro box_comic(class='', style='', bg='#fff', border_color='#000') %}
+<div class="{{ class }}" style="position: relative; padding: 24px; border: 4px solid #000; background: {{ bg }}; box-shadow: 8px 8px 0px {{ border_color }}; font-family: 'Comic Sans MS', cursive; {{ style }}">
+    {{ caller() }}
+</div>
+{% endmacro %}
+
+{# 22. 霓虹发光 (Neon) #}
+{% macro box_neon(class='', style='', color='#0ff') %}
+<div class="{{ class }}" style="position: relative; padding: 24px; border: 1px solid transparent; background: rgba(0,0,0,0.8); color: #fff; box-shadow: 0 0 10px {{ color }}, inset 0 0 10px {{ color }}; border-color: {{ color }}; text-shadow: 0 0 5px {{ color }}; {{ style }}">
+    {{ caller() }}
+</div>
+{% endmacro %}
+
+{# 23. 缝纫线 (Stitched) #}
+{% macro box_stitched(class='', style='', bg='#555555', color='#ffffff') %}
+<div class="{{ class }}" style="position: relative; padding: 24px; background: {{ bg }}; color: {{ color }}; outline: 2px dashed {{ color }}; outline-offset: -10px; {{ style }}">
+    {{ caller() }}
+</div>
+{% endmacro %}
+
+{# 24. 胶卷 (Film Strip) #}
+{% macro box_film(class='', style='') %}
+<div class="{{ class }}" style="position: relative; padding: 24px 32px; background-color: #111827; color: #fff; {{ style }}">
+    <div style="position:absolute; top:0; left:0; right:0; height:20px; background-image: linear-gradient(to right, #fff 50%, transparent 50%); background-size: 20px 100%; opacity: 0.8;"></div>
+    <div style="position:absolute; bottom:0; left:0; right:0; height:20px; background-image: linear-gradient(to right, #fff 50%, transparent 50%); background-size: 20px 100%; opacity: 0.8;"></div>
+    {{ caller() }}
+</div>
+{% endmacro %}
+
+{# 25. 文件夹标签 (Folder Tab) #}
+{% macro box_folder(class='', style='', bg='#f1c40f', title='Folder') %}
+<div class="{{ class }}" style="position: relative; margin-top: 32px; {{ style }}">
+    <div style="position: absolute; top: -32px; left: 0; height: 32px; padding: 0 24px; background-color: {{ bg }}; opacity: 0.9; border-top-left-radius: 8px; border-top-right-radius: 8px; display: flex; align-items: center; font-weight: bold; color: rgba(0, 0, 0, 0.6);">{{ title }}</div>
+    <div style="padding: 24px; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; border-top-right-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); background: {{ bg }};">
+        {{ caller() }}
+    </div>
+</div>
+{% endmacro %}
+
+{# 26. 邮票边缘 (Stamp) #}
+{% macro box_stamp(class='', style='', bg='#fff') %}
+<div class="{{ class }}" style="position: relative; padding: 32px; filter: drop-shadow(0 4px 3px rgba(0,0,0,0.07)); background: radial-gradient(transparent 0px, {{ bg }} 0px); background-size: 20px 20px; background-position: -10px -10px; -webkit-mask: radial-gradient(circle at 10px 10px, transparent 10px, #000 0) -10px -10px / 20px 20px repeat; mask: radial-gradient(circle at 10px 10px, transparent 10px, #000 0) -10px -10px / 20px 20px repeat; {{ style }}">
+    <div style="background: {{ bg }}; height: 100%; width: 100%;">
+        {{ caller() }}
+    </div>
+</div>
+{% endmacro %}
+
+{# 27. 渐变边框 (Gradient Border) #}
+{% macro box_gradient_border(class='', style='') %}
+<div class="{{ class }}" style="position: relative; padding: 2px; border-radius: 12px; background: linear-gradient(to right, #ec4899, #ef4444, #eab308); {{ style }}">
+    <div style="height: 100%; width: 100%; background-color: #fff; border-radius: 10px; padding: 24px;">
+        {{ caller() }}
+    </div>
+</div>
+{% endmacro %}
+
+{# 28. 双重偏移 (Double Offset) #}
+{% macro box_double_offset(class='', style='', color='var(--color-primary)') %}
+<div class="{{ class }}" style="position: relative; {{ style }}">
+    <div style="position: absolute; top: 0; right: 0; bottom: 0; left: 0; border: 2px solid {{ color }}; transform: translate(8px, 8px); opacity: 0.5;"></div>
+    <div style="position: relative; border: 2px solid {{ color }}; background-color: #fff; padding: 24px;">
+        {{ caller() }}
+    </div>
+</div>
+{% endmacro %}
+
+{# 29. 素描手绘 (Sketchy) #}
+{% macro box_sketch(class='', style='') %}
+<div class="{{ class }}" style="position: relative; padding: 24px; border-radius: 2px 255px 3px 25px / 255px 5px 225px 5px; border: 2px solid #444; box-shadow: 2px 3px 5px rgba(0,0,0,0.1); {{ style }}">
+    {{ caller() }}
+</div>
+{% endmacro %}
+
+{# 30. 括号强调 (Brackets) #}
+{% macro box_brackets(class='', style='', color='var(--color-primary)') %}
+<div class="{{ class }}" style="position: relative; padding: 16px; margin-top: 8px; margin-bottom: 8px; {{ style }}">
+    <div style="position: absolute; top: 0; left: 0; width: 16px; height: 100%; border-left: 4px solid {{ color }}; border-top: 4px solid {{ color }}; border-bottom: 4px solid {{ color }};"></div>
+    <div style="position: absolute; top: 0; right: 0; width: 16px; height: 100%; border-right: 4px solid {{ color }}; border-top: 4px solid {{ color }}; border-bottom: 4px solid {{ color }};"></div>
+    <div style="padding-left: 16px; padding-right: 16px;">
+        {{ caller() }}
+    </div>
+</div>
+{% endmacro %}

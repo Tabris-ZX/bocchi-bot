@@ -1,0 +1,83 @@
+{% from 'partials/_component_macros.jinja' import wrapper %}
+{% call wrapper(data, 'container') %}
+    <div class="header">
+        <h1>{{ data.title }}</h1>
+        {% if data.tip %}
+        <p>{{ data.tip | replace("`", "<code>") | replace("`", "</code>") | safe }}</p>
+        {% endif %}
+    </div>
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    {% for header in data.headers %}
+                    <th>{{ header }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in data.rows %}
+                <tr>
+                    {% for cell in row %}
+                    <td>
+                        {% if cell and cell.type == 'image' %}
+                            <img class="cell-image {{ 'circular' if cell.shape == 'circle' }}"
+                                 src="{{ cell.src }}"
+                                 alt="{{ cell.alt }}"
+                                 width="{{ cell.width }}"
+                                 height="{{ cell.height }}">
+                        {% elif cell and cell.type == 'text' %}
+                            <span class="cell-text"
+                                  style="font-weight: {{ 'bold' if cell.bold else 'normal' }}; color: {{ cell.color if cell.color else 'inherit' }};">
+                                {{ cell.content }}
+                            </span>
+                        {% elif cell and cell.type == 'rich_text' %}
+                            <div class="rich-text-cell" style="display: flex; flex-direction: {{ cell.direction }}; gap: {{ cell.gap }};">
+                                {% for span in cell.spans %}
+                                    {% set classes = ['rich-text-span'] %}
+                                    {% if span.bold %}{% set _ = classes.append('bold') %}{% endif %}
+                                    {% if span.italic %}{% set _ = classes.append('italic') %}{% endif %}
+                                    {% if span.underline %}{% set _ = classes.append('underline') %}{% endif %}
+                                    {% if span.strikethrough %}{% set _ = classes.append('strikethrough') %}{% endif %}
+                                    {% if span.code %}{% set _ = classes.append('code') %}{% endif %}
+
+                                    {% set styles = [] %}
+                                    {% if span.color %}{% set _ = styles.append('color: ' ~ span.color) %}{% endif %}
+                                    {% if span.font_size %}{% set _ = styles.append('font-size: ' ~ span.font_size) %}{% endif %}
+                                    {% if span.font_family %}{% set _ = styles.append('font-family: ' ~ span.font_family) %}{% endif %}
+
+                                    <span class="{{ classes | join(' ') }}" style="{{ styles | join('; ') }}">
+                                        {{ span.text | safe }}
+                                    </span>
+                                {% endfor %}
+                            </div>
+                        {% elif cell and cell.type == 'badge' %}
+                            <span class="status-badge {{ cell.status_type }}">
+                                {{ cell.text }}
+                            </span>
+                        {% elif cell and cell.type == 'progress_bar' %}
+                            <div class="progress-container">
+                                <div class="progress-bar {{ cell.color_scheme }} {% if cell.animated %}animated{% endif %}" style="width: {{ cell.progress }}%;">
+                                    <div class="progress-label-wrapper" style="--progress: {{ cell.progress }}">
+                                        <span class="progress-label-inner">{{ cell.label if cell.label else '' }}</span>
+                                        <span class="progress-label-outer">{{ cell.label if cell.label else '' }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        {% elif cell and cell.type == 'component' %}
+                            {{ render(cell.component) }}
+                        {% elif cell is mapping and 'available' in cell %}
+                            <span class="status-badge {{ 'ok' if cell.available else 'error' }}">
+                                <span>{{ cell.text }}</span>
+                            </span>
+                        {% else %}
+                            {{ cell }}
+                        {% endif %}
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endcall %}

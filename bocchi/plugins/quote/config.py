@@ -1,11 +1,10 @@
-import os
 from pathlib import Path
 
 from bocchi.configs.config import Config
-from bocchi.configs.path_config import DATA_PATH, FONT_PATH
+from bocchi.configs.path_config import DATA_PATH
 from bocchi.services.log import logger
 
-QUOTE_ASSETS_PATH = Path(__file__).parent / "assets"
+QUOTE_ASSETS_PATH = Path(__file__).parent / "templates"
 
 
 def get_quote_path() -> Path:
@@ -47,10 +46,8 @@ def resolve_quote_image_path(path_str: str | Path) -> Path:
     解析语录图片路径，无论是相对还是绝对，都返回一个可用的绝对路径。
     这是处理新旧两种路径格式的核心。
     """
-    path = Path(path_str)
-    if path.is_absolute():
-        return path
-    return DATA_PATH / path
+    clean_path = str(path_str).replace("\\", "/").lstrip("/").lstrip("\\")
+    return DATA_PATH / clean_path
 
 
 def safe_file_exists(file_path: str | Path) -> bool:
@@ -72,5 +69,3 @@ def ensure_directory_exists(dir_path: str | Path) -> Path:
     except (OSError, PermissionError) as e:
         logger.error(f"创建目录失败: {dir_path}, 错误: {e}", "群聊语录")
         raise
-
-

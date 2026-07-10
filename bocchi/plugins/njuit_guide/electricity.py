@@ -19,6 +19,7 @@ from .model import NjuitStu
 
 FILE_PATH = DATA_PATH / "njuit_guide"
 TEMPLATES_PATH = THEMES_PATH / "default" / "templates" /"pages"/"extra"/ "njuit_guide"
+CLASS_NAME_PATTERN = re.compile(r"^[^\d\s]{2}(\d{2})\d{2}$")
 
 
 class Electricity:
@@ -101,12 +102,26 @@ class Electricity:
         return not balance_info['error']
 
     @classmethod
+    async def validate_class_name(cls, class_name: str) -> bool:
+        """验证班级名是否符合命名规则"""
+        match = CLASS_NAME_PATTERN.fullmatch(class_name)
+        if not match:
+            return False
+        return int(match.group(1)) <= 28
+
+    @classmethod
     async def bind_info(cls, user_id, class_name=None, dorm_id=None) -> bool:
-        """绑定用户信息（包含宿舍验证）"""
+        """绑定用户信息（包含班级和宿舍验证）"""
         try:
             # 过滤空字符串，转换为None
             class_name = class_name if class_name else None
             dorm_id = dorm_id if dorm_id else None
+
+            # 如果提供了班级名，先验证班级格式是否有效
+            if class_name:
+                if not await cls.validate_class_name(class_name):
+                    logger.warning(f"班级 {class_name} 验证失败")
+                    return False
             
             # 如果提供了宿舍ID，先验证宿舍是否有效
             if dorm_id:
@@ -114,6 +129,8 @@ class Electricity:
                     logger.warning(f"宿舍 {dorm_id} 验证失败，无法查询电费余额")
                     return False
             
+            #todo 仅绑定一项时会使另一项变空
+
             # 仅使用 user_id 作为键
             await NjuitStu.update_or_create(
                 user_id=user_id,
@@ -135,7 +152,7 @@ class Electricity:
         data = await NjuitStu.get_data(user_id=user_id)
         if not data or not data.dorm_id:
             dorm_id_path = FILE_PATH/"dorm_id.png"
-            return ["你还没有绑定宿舍捏~ \n私聊小波奇发送\n账号绑定  dorm  宿舍id\n来绑定宿舍吧~",dorm_id_path]
+            return ["你还没有绑定宿舍捏~ \n私聊小波奇发送\n南工绑定  dorm  宿舍id\n来绑定宿舍吧~",dorm_id_path]
         
         balance_info = await cls._get_electricity_balance(data.dorm_id)
         if balance_info['error']:

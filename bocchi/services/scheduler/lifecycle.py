@@ -8,10 +8,10 @@ from bocchi.services.log import logger
 from bocchi.utils.manager.priority_manager import PriorityLifecycle
 from bocchi.utils.pydantic_compat import model_dump
 
-from .adapter import APSchedulerAdapter
-from .job import ScheduleContext
+from .engine import APSchedulerAdapter
+from .manager import scheduler_manager
 from .repository import ScheduleRepository
-from .service import scheduler_manager
+from .types import ScheduleContext
 
 
 @PriorityLifecycle.on_startup(priority=90)
@@ -37,7 +37,7 @@ async def _load_schedules_from_db():
 
         query_kwargs = {
             "plugin_name": plugin_name,
-            "group_id": group_id,
+            "target_identifier": group_id or "",
             "bot_id": bot_id,
         }
         exists = await ScheduleRepository.exists(**query_kwargs)
@@ -49,9 +49,13 @@ async def _load_schedules_from_db():
                 task_info.trigger, exclude={"trigger_type"}
             )
 
+            target_type = "GROUP" if group_id else "GLOBAL"
+            target_identifier = group_id or ""
+
             schedule = await scheduler_manager.add_schedule(
                 plugin_name=plugin_name,
-                group_id=group_id,
+                target_type=target_type,
+                target_identifier=target_identifier,
                 trigger_type=task_info.trigger.trigger_type,
                 trigger_config=trigger_config_dict,
                 job_kwargs=task_info.job_kwargs,
@@ -78,6 +82,7 @@ async def _load_schedules_from_db():
                 schedule_id=0,
                 plugin_name=job_id,
                 bot_id=None,
+                platform_scope=None,
                 group_id=None,
                 job_kwargs={},
             )

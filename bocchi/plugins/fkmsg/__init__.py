@@ -32,7 +32,7 @@ __plugin_meta__ = PluginMetadata(
     建议使用NTQQ来排版
     """.strip(),
     extra=PluginExtraData(
-        author="Tabris_ZX",
+        author="Tabris-ZX",
         version="1.0",
         menu_type="功能",
     ).dict(),

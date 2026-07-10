@@ -1,0 +1,16 @@
+{% from 'partials/_component_macros.jinja' import wrapper %}
+{% call wrapper(data, 'kpi-card') %}
+    <div class="kpi-header">
+        {% if data.icon_svg %}<svg class="kpi-icon" viewBox="0 0 24 24"><path d="{{ data.icon_svg }}"></path></svg>{% endif %}
+        <span class="kpi-label">{{ data.label }}</span>
+    </div>
+    <div class="kpi-body">
+        <span class="kpi-value">{{ data.value }}</span>
+        {% if data.unit %}<span class="kpi-unit">{{ data.unit }}</span>{% endif %}
+    </div>
+    {% if data.change %}
+    <div class="kpi-footer">
+        <span class="kpi-change {{ data.change_type }}">{{ data.change }}</span>
+    </div>
+    {% endif %}
+{% endcall %}

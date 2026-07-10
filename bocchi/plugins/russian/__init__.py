@@ -49,7 +49,7 @@ __plugin_meta__ = PluginMetadata(
         * 注：同一时间群内只能有一场对决 *
     """.strip(),
     extra=PluginExtraData(
-        author="Tabris_ZX",
+        author="Tabris-ZX",
         version="0.2",
         menu_type="娱乐",
         commands=[

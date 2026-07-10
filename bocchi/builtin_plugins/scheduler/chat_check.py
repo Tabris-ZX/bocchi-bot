@@ -9,6 +9,7 @@ from bocchi.models.chat_history import ChatHistory
 from bocchi.models.group_console import GroupConsole
 from bocchi.models.task_info import TaskInfo
 from bocchi.services.log import logger
+from bocchi.services.message_load import should_pause_tasks
 from bocchi.utils.platform import PlatformUtils
 
 Config.add_plugin_config(
@@ -27,6 +28,8 @@ Config.add_plugin_config(
     minute=40,
 )
 async def _():
+    if should_pause_tasks():
+        return
     if not Config.get_config("chat_history", "FLAG"):
         logger.debug("未开启历史发言记录，过滤群组发言检测...")
         return
@@ -35,7 +38,7 @@ async def _():
         return
     """检测群组发言时间并禁用全部被动"""
     update_list = []
-    if modules := await TaskInfo.annotate().values_list("module", flat=True):
+    if modules := await TaskInfo.get_modules(load_status=None):
         for bot in nonebot.get_bots().values():
             group_list, _ = await PlatformUtils.get_group_list(bot, True)
             for group in group_list:
@@ -49,8 +52,8 @@ async def _():
                     if last_message:
                         now = datetime.now(pytz.timezone("Asia/Shanghai"))
                         if now - timedelta(days=2) > last_message.create_time:
-                            _group, _ = await GroupConsole.get_or_create(
-                                group_id=group.group_id, channel_id__isnull=True
+                            _group, _ = await GroupConsole.get_or_create_root_group(
+                                group.group_id
                             )
                             modules = [f"<{module}" for module in modules]
                             _group.block_task = ",".join(modules) + ","  # type: ignore
@@ -66,3 +69,7 @@ async def _():
                     )
     if update_list:
         await GroupConsole.bulk_update(update_list, ["block_task"], 10)
+        from bocchi.services.cache.runtime_cache import GroupMemoryCache
+
+        for group in update_list:
+            await GroupMemoryCache.upsert_from_model(group)

@@ -1,8 +1,8 @@
-from typing import cast
-
 import nonebot
 from nonebot.adapters import Bot
 from nonebot.plugin import PluginMetadata
+from tortoise.exceptions import IntegrityError, TransactionManagementError
+from tortoise.transactions import in_transaction
 
 from bocchi.configs.utils import PluginExtraData
 from bocchi.models.bot_console import BotConsole
@@ -68,13 +68,18 @@ async def init_bot_console(bot: Bot):
             plugin_type__in=[PluginType.NORMAL, PluginType.DEPENDANT, PluginType.ADMIN]
         )
     ]
-    task_list = cast(
-        list[str], await TaskInfo.filter(status=True).values_list("module", flat=True)
-    )
+    task_list = await TaskInfo.get_modules(status=True)
     platform = PlatformUtils.get_platform(bot)
-    bot_data, created = await BotConsole.get_or_create(
-        bot_id=bot.self_id, platform=platform
-    )
+    try:
+        bot_data, created = await BotConsole.get_or_create(
+            bot_id=bot.self_id, platform=platform
+        )
+    except (IntegrityError, TransactionManagementError):
+        async with in_transaction() as connection:
+            bot_data = (
+                await BotConsole.filter(bot_id=bot.self_id).using_db(connection).get()
+            )
+        created = False
 
     if not created:
         task_list = await _filter_blocked_items(

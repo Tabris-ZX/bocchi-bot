@@ -1,7 +1,0 @@
-{
-  "name": "水平行布局",
-  "entrypoint": "main.html",
-  "render_options": {
-    "viewport": { "width": 800, "height": 10 }
-  }
-}

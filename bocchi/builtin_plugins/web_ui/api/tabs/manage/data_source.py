@@ -13,6 +13,7 @@ from bocchi.utils.enum import RequestType
 from bocchi.utils.platform import PlatformUtils
 
 from ....config import AVA_URL, GROUP_AVA_URL
+from ....utils import webui_db_call
 from .model import (
     FriendRequestResult,
     GroupDetail,
@@ -33,10 +34,10 @@ class ApiDataSource:
         参数:
             group: UpdateGroup
         """
-        db_group = await GroupConsole.get_group(group.group_id) or GroupConsole(
+        db_group = await GroupConsole.get_group_db(group.group_id) or GroupConsole(
             group_id=group.group_id
         )
-        task_list = await TaskInfo.all().values_list("module", flat=True)
+        task_list = await TaskInfo.get_modules(load_status=None)
         db_group.level = group.level
         db_group.status = group.status
         if group.close_plugins:
@@ -110,17 +111,25 @@ class ApiDataSource:
         fd = [x for x in friend_list if x.user_id == user_id]
         if not fd:
             return None
-        like_plugin_list = (
-            await Statistics.filter(user_id=user_id)
+        like_plugin_list = await webui_db_call(
+            Statistics.filter(user_id=user_id)
             .annotate(count=Count("id"))
             .group_by("plugin_name")
             .order_by("-count")
             .limit(5)
-            .values_list("plugin_name", "count")
+            .values_list("plugin_name", "count"),
+            "Manage.friend_like_plugin",
         )
         like_plugin = {}
         module_list = [x[0] for x in like_plugin_list]
-        plugins = await PluginInfo.filter(module__in=module_list).all()
+        plugins = await webui_db_call(
+            PluginInfo.get_plugins(
+                load_status=None,
+                filter_parent=False,
+                module__in=module_list,
+            ),
+            "Manage.friend_like_plugin_names",
+        )
         module2name = {p.module: p.name for p in plugins}
         for data in like_plugin_list:
             name = module2name.get(data[0]) or data[0]
@@ -132,8 +141,14 @@ class ApiDataSource:
             nickname=user.user_name,
             remark="",
             is_ban=await BanConsole.is_ban(user_id),
-            chat_count=await ChatHistory.filter(user_id=user_id).count(),
-            call_count=await Statistics.filter(user_id=user_id).count(),
+            chat_count=await webui_db_call(
+                ChatHistory.filter(user_id=user_id).count(),
+                "Manage.friend_chat_count",
+            ),
+            call_count=await webui_db_call(
+                Statistics.filter(user_id=user_id).count(),
+                "Manage.friend_call_count",
+            ),
             like_plugin=like_plugin,
         )
 
@@ -147,16 +162,20 @@ class ApiDataSource:
         返回:
             dict[str, int]: 插件与调用次数
         """
-        like_plugin_list = (
-            await Statistics.filter(group_id=group_id)
+        like_plugin_list = await webui_db_call(
+            Statistics.filter(group_id=group_id)
             .annotate(count=Count("id"))
             .group_by("plugin_name")
             .order_by("-count")
             .limit(5)
-            .values_list("plugin_name", "count")
+            .values_list("plugin_name", "count"),
+            "Manage.group_like_plugin",
         )
         like_plugin = {}
-        plugins = await PluginInfo.get_plugins()
+        plugins = await webui_db_call(
+            PluginInfo.get_plugins(),
+            "Manage.group_like_plugin_names",
+        )
         module2name = {p.module: p.name for p in plugins}
         for data in like_plugin_list:
             name = module2name.get(data[0]) or data[0]
@@ -213,26 +232,26 @@ class ApiDataSource:
         返回:
             list[Task]: 群组被动列表
         """
-        all_task = await TaskInfo.annotate().values_list("module", "name")
-        task_module2name = {x[0]: x[1] for x in all_task}
+        all_task = await TaskInfo.get_tasks(load_status=None)
+        task_module2name = {task.module: task.name for task in all_task}
         task_list = []
         if group.block_task or group.superuser_block_plugin:
             sbp = CommonUtils.convert_module_format(group.superuser_block_task)
             tasks = CommonUtils.convert_module_format(group.block_task)
             task_list.extend(
                 Task(
-                    name=task[0],
-                    zh_name=task_module2name.get(task[0]) or task[0],
-                    status=task[0] not in tasks and task[0] not in sbp,
-                    is_super_block=task[0] in sbp,
+                    name=task.module,
+                    zh_name=task_module2name.get(task.module) or task.module,
+                    status=task.module not in tasks and task.module not in sbp,
+                    is_super_block=task.module in sbp,
                 )
                 for task in all_task
             )
         else:
             task_list.extend(
                 Task(
-                    name=task[0],
-                    zh_name=task_module2name.get(task[0]) or task[0],
+                    name=task.module,
+                    zh_name=task_module2name.get(task.module) or task.module,
                     status=True,
                     is_super_block=False,
                 )
@@ -250,7 +269,7 @@ class ApiDataSource:
         返回:
             GroupDetail | None: 群组详情数据
         """
-        group = await GroupConsole.get_group(group_id=group_id)
+        group = await GroupConsole.get_group_db(group_id=group_id)
         if not group:
             return None
         like_plugin = await cls.__get_group_detail_like_plugin(group_id)
@@ -264,8 +283,14 @@ class ApiDataSource:
             name=group.group_name,
             member_count=group.member_count,
             max_member_count=group.max_member_count,
-            chat_count=await ChatHistory.filter(group_id=group_id).count(),
-            call_count=await Statistics.filter(group_id=group_id).count(),
+            chat_count=await webui_db_call(
+                ChatHistory.filter(group_id=group_id).count(),
+                "Manage.group_chat_count",
+            ),
+            call_count=await webui_db_call(
+                Statistics.filter(group_id=group_id).count(),
+                "Manage.group_call_count",
+            ),
             like_plugin=like_plugin,
             level=group.level,
             status=group.status,

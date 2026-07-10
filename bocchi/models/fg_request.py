@@ -8,7 +8,6 @@ from bocchi.configs.config import BotConfig
 from bocchi.models.group_console import GroupConsole
 from bocchi.services.db_context import Model
 from bocchi.services.log import logger
-from bocchi.utils.common_utils import SqlUtils
 from bocchi.utils.enum import RequestHandleType, RequestType
 from bocchi.utils.exception import NotFoundError
 from bocchi.utils.manager.bot_profile_manager import BotProfileManager
@@ -152,8 +151,10 @@ class FgRequest(Model):
                             "添加好友自动发送BOT自我介绍图片", session=req.user_id
                         )
             else:
-                await GroupConsole.update_or_create(
-                    group_id=req.group_id, defaults={"group_flag": 1}
+                await GroupConsole.get_or_create_root_group(
+                    group_id=req.group_id,
+                    defaults={"group_flag": 1},
+                    update_defaults=True,
                 )
                 if req.flag == "0":
                     # 用户手动申请入群，创建群认证后提醒用户拉群
@@ -173,6 +174,4 @@ class FgRequest(Model):
 
     @classmethod
     async def _run_script(cls):
-        return [
-            SqlUtils.add_column("fg_request", "message_ids", "character varying(255)")
-        ]
+        return []

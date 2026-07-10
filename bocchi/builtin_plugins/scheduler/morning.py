@@ -42,10 +42,10 @@ async def check(bot: Bot, group_id: str) -> bool:
 @scheduler.scheduled_job(
     "cron",
     hour=6,
-    minute=0,
+    minute=1,
 )
 async def _():
-    message = MessageUtils.build_message(["早上好", IMAGE_PATH / "bocchi_action" / "zao.png"])
+    message = MessageUtils.build_message(["早上好", IMAGE_PATH / "bocchi" / "zao.jpg"])
     await broadcast_group(message, log_cmd="被动早晚安", check_func=check)
     logger.info("每日早安发送...")
 
@@ -60,7 +60,7 @@ async def _():
     message = MessageUtils.build_message(
         [
             f"{BotConfig.self_nickname}要睡觉了，你们也要早点睡呀",
-            IMAGE_PATH / "bocchi_action" / "sleep.png",
+            IMAGE_PATH / "bocchi" / "sleep.jpg",
         ]
     )
     await broadcast_group(

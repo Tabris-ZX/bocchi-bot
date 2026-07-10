@@ -1,8 +1,0 @@
-{
-  "name": "小真寻银行 (统一模板)",
-  
-  "entrypoint": "dispatch.html",
-  "render_options": {
-    "viewport": { "width": 450, "height": 10 }
-  }
-}

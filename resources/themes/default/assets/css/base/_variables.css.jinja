@@ -1,0 +1,38 @@
+{#
+    说明:
+    - `theme.palette`: 当前激活主题的调色板数据 (e.g., dark)
+    - `default_theme_palette`: `default` 主题的调色板数据，用于回退和映射
+#}
+:root {
+    {# 1. 获取当前主题的模式，如果没定义，默认为 'hybrid' #}
+    {% set mode = theme.palette.get('mode', 'hybrid') %}
+
+    {# 2. 生成所有核心颜色变量，总是使用当前主题的定义 - use '-' to strip newlines inside the loop #}
+    {%- for name, value in theme.palette.colors.items() %}
+    --color-{{ name|replace('_', '-') }}: {{ value }};
+    {%- endfor %}
+
+    {# 3. 智能生成所有组件的精细化颜色变量 #}
+    {%- for component, properties in default_theme_palette.component_colors.items() %}
+        {%- for prop, details in properties.items() %}
+            {%- set css_var_name = '--color-' ~ component|replace('_', '-') ~ '-' ~ prop|replace('_', '-') %}
+
+            {# 检查是否处于强制简单模式 #}
+            {%- if mode == 'simple' %}
+    {{ css_var_name }}: var(--color-{{ details.maps_to|replace('_', '-') }});
+            {# 混合模式 #}
+            {%- elif mode == 'hybrid' %}
+                {# 如果当前主题的 component_colors 中有精确定义，使用它 #}
+                {%- if theme.palette.component_colors and component in theme.palette.component_colors and prop in theme.palette.component_colors[component] %}
+    {{ css_var_name }}: {{ theme.palette.component_colors[component][prop].value }};
+                {# 否则，使用默认主题定义的映射关系 #}
+                {%- else %}
+    {{ css_var_name }}: var(--color-{{ details.maps_to|replace('_', '-') }});
+                {%- endif %}
+            {%- else %}
+            /* WARNING: Invalid theme mode '{{ mode }}'. Falling back to 'hybrid'. */
+    {%- if theme.palette.component_colors and component in theme.palette.component_colors and prop in theme.palette.component_colors[component] %}{{ css_var_name }}: {{ theme.palette.component_colors[component][prop].value }};{%- else %}{{ css_var_name }}: var(--color-{{ details.maps_to|replace('_', '-') }});{%- endif %}
+            {%- endif %}
+        {%- endfor %}
+    {%- endfor %}
+}

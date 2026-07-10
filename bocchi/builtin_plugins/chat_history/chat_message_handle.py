@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from typing import cast
 
 from nonebot.plugin import PluginMetadata
 from nonebot_plugin_alconna import (
@@ -18,13 +19,13 @@ from bocchi import ui
 from bocchi.configs.config import Config
 from bocchi.configs.utils import Command, PluginExtraData, RegisterConfig
 from bocchi.models.chat_history import ChatHistory
-from bocchi.models.group_member_info import GroupInfoUser
+from bocchi.models.friend_user import FriendUser
+from bocchi.services import avatar_service
+from bocchi.services.hot_query_cache import get_group_member_map, get_member_names
 from bocchi.services.log import logger
-from bocchi.ui.builders import TableBuilder
 from bocchi.ui.models import ImageCell, TextCell
 from bocchi.utils.enum import PluginType
 from bocchi.utils.message import MessageUtils
-from bocchi.utils.platform import PlatformUtils
 
 __plugin_meta__ = PluginMetadata(
     name="消息统计",
@@ -118,41 +119,57 @@ async def _(
     show_quit_member = Config.get_config("chat_history", "SHOW_QUIT_MEMBER", True)
 
     fetch_count = count.result
-    if not show_quit_member:
+    has_group_context = bool(group_id)
+    if has_group_context and not show_quit_member:
         fetch_count = count.result * 2
 
-    if rank_data := await ChatHistory.get_group_msg_rank(
+    raw_rank_data = await ChatHistory.get_group_msg_rank(
         group_id, fetch_count, "DES" if arparma.find("des") else "DESC", date_scope
-    ):
+    )
+
+    if raw_rank_data:
+        rank_data = cast(list[tuple[str, int]], raw_rank_data)
         rows_data = []
-        platform = "qq"
+        platform = getattr(session, "platform", None) or "qq"
 
         user_ids_in_rank = [str(uid) for uid, _ in rank_data]
-        users_in_group_query = GroupInfoUser.filter(
-            user_id__in=user_ids_in_rank, group_id=group_id
-        )
-        users_in_group = {u.user_id: u for u in await users_in_group_query}
+        users_in_group = {}
+        user_names: dict[str, str] = {}
+        if has_group_context:
+            users_in_group = await get_group_member_map(group_id, user_ids_in_rank)
+        else:
+            friend_users = await FriendUser.filter(
+                user_id__in=user_ids_in_rank
+            ).values_list("user_id", "user_name")
+            user_names.update(dict(friend_users))
+            group_user_names = await get_member_names(user_ids_in_rank)
+            for user_id, user_name in group_user_names.items():
+                if user_name and user_id not in user_names:
+                    user_names[user_id] = user_name
 
         for idx, (uid, num) in enumerate(rank_data):
             if len(rows_data) >= count.result:
                 break
 
             uid_str = str(uid)
-            user_in_group = users_in_group.get(uid_str)
+            if has_group_context:
+                user_in_group = users_in_group.get(uid_str)
+                if not user_in_group and not show_quit_member:
+                    continue
+                user_name = (
+                    user_in_group.user_name if user_in_group else f"{uid_str}(已退群)"
+                )
+            else:
+                user_name = user_names.get(uid_str) or uid_str
 
-            if not user_in_group and not show_quit_member:
-                continue
-
-            user_name = (
-                user_in_group.user_name if user_in_group else f"{uid_str}(已退群)"
-            )
-
-            avatar_url = PlatformUtils.get_user_avatar_url(uid_str, platform)
+            avatar_path = await avatar_service.get_avatar_path(platform, uid_str)
 
             rows_data.append(
                 [
                     TextCell(content=str(len(rows_data) + 1)),
-                    ImageCell(src=avatar_url or "", shape="circle"),
+                    ImageCell(
+                        src=avatar_path.as_uri() if avatar_path else "", shape="circle"
+                    ),
                     TextCell(content=user_name),
                     TextCell(content=str(num), bold=True),
                 ]
@@ -172,10 +189,10 @@ async def _(
                 f"{date_scope[1].replace(microsecond=0)}"
             )
 
-        builder = TableBuilder(f"消息排行({count.result})", date_str)
-        builder.set_headers(column_name).add_rows(rows_data)
+        table = ui.table(f"消息排行({count.result})", date_str)
+        table.set_headers(column_name).add_rows(rows_data)
 
-        image_bytes = await ui.render(builder.build())
+        image_bytes = await ui.render(table)
 
         logger.info(
             f"查看消息排行 数量={count.result}", arparma.header_result, session=session

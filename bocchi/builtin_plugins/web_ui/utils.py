@@ -2,7 +2,6 @@ import contextlib
 from datetime import datetime, timedelta, timezone
 import os
 from pathlib import Path
-import re
 
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
@@ -12,12 +11,16 @@ import psutil
 import ujson as json
 
 from bocchi.configs.config import Config
-from bocchi.configs.path_config import DATA_PATH, IMAGE_PATH
+from bocchi.configs.path_config import DATA_PATH
+from bocchi.services.db_context import with_db_timeout
+from bocchi.services.message_load import is_db_unhealthy
 
 from .base_model import SystemFolderSize, SystemStatus, User
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
+DB_BUSY_MESSAGE = "数据库繁忙，请稍后再试"
+WEBUI_DB_TIMEOUT = 3.0
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/login")
 
@@ -27,6 +30,20 @@ token_data = {"token": []}
 if token_file.exists():
     with contextlib.suppress(json.JSONDecodeError):
         token_data = json.load(open(token_file, encoding="utf8"))
+
+
+async def webui_db_call(coro, operation: str):
+    if is_db_unhealthy():
+        close = getattr(coro, "close", None)
+        if callable(close):
+            close()
+        raise TimeoutError(DB_BUSY_MESSAGE)
+    return await with_db_timeout(
+        coro,
+        timeout=WEBUI_DB_TIMEOUT,
+        operation=operation,
+        source="web_ui",
+    )
 
 
 def validate_path(path_str: str | None) -> tuple[Path | None, str | None]:
@@ -42,46 +59,46 @@ def validate_path(path_str: str | None) -> tuple[Path | None, str | None]:
         if not path_str:
             return Path().resolve(), None
 
-        # 1. 移除任何可能的路径遍历尝试
-        path_str = re.sub(r"[\\/]\.\.[\\/]", "", path_str)
-
-        # 2. 规范化路径并转换为绝对路径
+        # 1. 规范化路径并转换为绝对路径（resolve() 会展开所有 .. 和符号链接）
         path = Path(path_str).resolve()
 
-        # 3. 获取项目根目录
+        # 2. 获取项目根目录
         root_dir = Path().resolve()
 
-        # 4. 验证路径是否在项目根目录内
+        # 3. 验证 resolve() 后的路径是否仍在项目根目录内（防路径穿越）
         try:
             if not path.is_relative_to(root_dir):
                 return None, "访问路径超出允许范围"
         except ValueError:
             return None, "无效的路径格式"
 
-        # 5. 验证路径是否包含任何危险字符
-        if any(c in str(path) for c in ["..", "~", "*", "?", ">", "<", "|", '"']):
-            return None, "路径包含非法字符"
-
-        # 6. 验证路径长度是否合理
+        # 4. 验证路径长度是否合理
         return (None, "路径长度超出限制") if len(str(path)) > 4096 else (path, None)
     except Exception as e:
         return None, f"路径验证失败: {e!s}"
 
 
-GROUP_HELP_PATH = DATA_PATH / "group_help"
-SIMPLE_HELP_IMAGE = IMAGE_PATH / "SIMPLE_HELP.png"
-SIMPLE_DETAIL_HELP_IMAGE = IMAGE_PATH / "SIMPLE_DETAIL_HELP.png"
+def validate_filename(name: str) -> str | None:
+    """验证文件名是否安全（不允许路径分隔符或路径穿越）
 
+    参数:
+        name: 用户输入的文件名
 
-def clear_help_image():
-    """清理帮助图片"""
-    if SIMPLE_HELP_IMAGE.exists():
-        SIMPLE_HELP_IMAGE.unlink()
-    if SIMPLE_DETAIL_HELP_IMAGE.exists():
-        SIMPLE_DETAIL_HELP_IMAGE.unlink()
-    for file in GROUP_HELP_PATH.iterdir():
-        if file.is_file():
-            file.unlink()
+    返回:
+        str | None: 错误信息，无错误则返回 None
+    """
+    if not name or not name.strip():
+        return "文件名不能为空"
+    # 禁止任何路径分隔符，防止将文件名当路径使用
+    if any(c in name for c in ("/", "\\", "\x00")):
+        return "文件名包含非法路径分隔符"
+    # 禁止 . 和 .. 作为文件名
+    if name.strip(".") == "":
+        return "文件名非法"
+    # 禁止危险字符（Windows / Linux 通用）
+    if any(c in name for c in ("<", ">", ":", '"', "|", "?", "*")):
+        return "文件名包含非法字符"
+    return None
 
 
 def get_user(uname: str) -> User | None:
@@ -157,7 +174,8 @@ def get_system_status() -> SystemStatus:
     """获取系统信息等"""
     cpu = psutil.cpu_percent()
     memory = psutil.virtual_memory().percent
-    disk = psutil.disk_usage("/").percent
+    disk_root = Path().resolve().anchor  # 跨平台：取当前工作目录所在盘的根
+    disk = psutil.disk_usage(disk_root).percent
     return SystemStatus(
         cpu=cpu,
         memory=memory,
@@ -171,7 +189,12 @@ def get_system_disk(
     full_path: str | None,
 ) -> list[SystemFolderSize]:
     """获取资源文件大小等"""
-    base_path = Path(full_path) if full_path else Path()
+    if full_path:
+        base_path, err = validate_path(full_path)
+        if err or not base_path:
+            return []
+    else:
+        base_path = Path().resolve()
     other_size = 0
     data_list = []
     for file in os.listdir(base_path):

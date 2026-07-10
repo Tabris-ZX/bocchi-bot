@@ -1,0 +1,33 @@
+.page-wrapper {
+    position: relative;
+    width: 100%;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    isolation: isolate;
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(30, 41, 59, 0.86));
+    border-radius: 12px;
+}
+
+.page-wrapper::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background:
+        radial-gradient(circle at 18% 16%, rgba(56, 189, 248, 0.18), transparent 30%),
+        linear-gradient(90deg, rgba(2, 6, 23, 0.66), rgba(15, 23, 42, 0.42));
+    pointer-events: none;
+}
+
+.chart-container {
+    position: relative;
+    z-index: 2;
+    overflow: hidden;
+    border-radius: 12px;
+    padding: 48px 42px 40px;
+    box-sizing: border-box;
+    width: 95%;
+}

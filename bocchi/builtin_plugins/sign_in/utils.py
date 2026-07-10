@@ -227,6 +227,9 @@ async def _generate_html_card(
         "level": level,
         "next_level_at": next_impression,
         "previous_level_at": previous_impression,
+        "level_text": lik2relation.get(str(level), "未知"),
+        "heart2": range(level),
+        "heart1": range(8 - level),
     }
 
     reward_info = None

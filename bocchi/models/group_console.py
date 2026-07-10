@@ -1,4 +1,5 @@
-from typing import Any, ClassVar, cast, overload
+import asyncio
+from typing import TYPE_CHECKING, Any, ClassVar, cast, overload
 from typing_extensions import Self
 
 from tortoise import fields
@@ -7,8 +8,13 @@ from tortoise.backends.base.client import BaseDBAsyncClient
 from bocchi.models.plugin_info import PluginInfo
 from bocchi.models.task_info import TaskInfo
 from bocchi.services.cache import CacheRoot
+from bocchi.services.cache.runtime_cache import GroupMemoryCache
 from bocchi.services.db_context import Model
-from bocchi.utils.enum import CacheType, DbLockType, PluginType
+from bocchi.services.db_context.schema_ops import AlterColumnType, CreateIndex
+from bocchi.utils.enum import DbLockType, PluginType
+
+if TYPE_CHECKING:
+    from bocchi.services.cache.runtime_cache import GroupSnapshot
 
 
 def add_disable_marker(name: str) -> str:
@@ -91,12 +97,10 @@ class GroupConsole(Model):
             ("group_id",)
         ]
 
-    cache_type = CacheType.GROUPS
-    """缓存类型"""
-    cache_key_field = ("group_id", "channel_id")
-    """缓存键字段"""
     enable_lock: ClassVar[list[DbLockType]] = [DbLockType.CREATE, DbLockType.UPSERT]
     """开启锁"""
+    _root_group_locks: ClassVar[dict[str, asyncio.Lock]] = {}
+    """普通群记录应用层锁，规避 channel_id=NULL 唯一键语义差异。"""
 
     @classmethod
     async def _get_task_modules(cls, *, default_status: bool) -> list[str]:
@@ -107,8 +111,9 @@ class GroupConsole(Model):
         """
         return cast(
             list[str],
-            await TaskInfo.filter(default_status=default_status).values_list(
-                "module", flat=True
+            await TaskInfo.get_modules(
+                default_status=default_status,
+                load_status=None,
             ),
         )
 
@@ -121,10 +126,13 @@ class GroupConsole(Model):
         """
         return cast(
             list[str],
-            await PluginInfo.filter(
+            await PluginInfo.get_plugins_values_list(
+                "module",
+                load_status=None,
+                filter_parent=False,
                 plugin_type__in=[PluginType.NORMAL, PluginType.DEPENDANT],
                 default_status=default_status,
-            ).values_list("module", flat=True),
+            ),
         )
 
     @classmethod
@@ -154,6 +162,7 @@ class GroupConsole(Model):
 
         # 更新缓存
         await cls._update_cache(group)
+        await GroupMemoryCache.upsert_from_model(group)
 
         return group
 
@@ -209,6 +218,7 @@ class GroupConsole(Model):
         # 更新缓存
         if is_create:
             await cls._update_cache(group)
+            await GroupMemoryCache.upsert_from_model(group)
 
         return group, is_create
 
@@ -234,8 +244,158 @@ class GroupConsole(Model):
 
         # 更新缓存
         await cls._update_cache(group)
+        await GroupMemoryCache.upsert_from_model(group)
 
         return group, is_create
+
+    @classmethod
+    def _clean_root_group_defaults(cls, defaults: dict | None) -> dict[str, Any]:
+        cleaned = {}
+        for field, value in (defaults or {}).items():
+            if field in {"id", "group_id", "channel_id", "channel_id__isnull"}:
+                continue
+            if value is None:
+                continue
+            cleaned[field] = value
+        return cleaned
+
+    @classmethod
+    def _root_group_score(cls, group: Self) -> tuple[int, int]:
+        score = 0
+        score += 8 if group.group_name else 0
+        score += 4 if group.max_member_count else 0
+        score += 4 if group.member_count else 0
+        score += 4 if group.group_flag else 0
+        score += 4 if group.is_super else 0
+        score += 3 if not group.status else 0
+        score += 3 if group.level != 5 else 0
+        score += len(convert_module_format(group.block_plugin))
+        score += len(convert_module_format(group.superuser_block_plugin))
+        score += len(convert_module_format(group.block_task))
+        score += len(convert_module_format(group.superuser_block_task))
+        return score, int(group.id or 0)
+
+    @classmethod
+    def _merge_module_field(cls, groups: list[Self], field: str) -> str:
+        modules: list[str] = []
+        seen = set()
+        for group in groups:
+            value = getattr(group, field, "") or ""
+            for module in cast(list[str], convert_module_format(value)):
+                if module not in seen:
+                    seen.add(module)
+                    modules.append(module)
+        return cast(str, convert_module_format(modules))
+
+    @classmethod
+    async def _deduplicate_root_group_records(cls, groups: list[Self]) -> Self:
+        if len(groups) == 1:
+            return groups[0]
+
+        keep = max(groups, key=cls._root_group_score)
+        newest_first = sorted(
+            groups, key=lambda group: int(group.id or 0), reverse=True
+        )
+
+        merged = {
+            "group_name": next(
+                (g.group_name for g in newest_first if g.group_name), ""
+            ),
+            "max_member_count": max(g.max_member_count for g in groups),
+            "member_count": max(g.member_count for g in groups),
+            "status": all(g.status for g in groups),
+            "level": min(g.level for g in groups),
+            "is_super": any(g.is_super for g in groups),
+            "group_flag": max(g.group_flag for g in groups),
+            "block_plugin": cls._merge_module_field(groups, "block_plugin"),
+            "superuser_block_plugin": cls._merge_module_field(
+                groups, "superuser_block_plugin"
+            ),
+            "block_task": cls._merge_module_field(groups, "block_task"),
+            "superuser_block_task": cls._merge_module_field(
+                groups, "superuser_block_task"
+            ),
+            "platform": next((g.platform for g in newest_first if g.platform), "qq"),
+        }
+
+        update_fields = []
+        for field, value in merged.items():
+            if getattr(keep, field) != value:
+                setattr(keep, field, value)
+                update_fields.append(field)
+        if update_fields:
+            await keep.save(update_fields=update_fields)
+
+        duplicate_ids = [
+            group.id for group in groups if group.id and group.id != keep.id
+        ]
+        if duplicate_ids:
+            await cls.filter(id__in=duplicate_ids).delete()
+        await GroupMemoryCache.upsert_from_model(keep)
+        return keep
+
+    @classmethod
+    async def get_or_create_root_group(
+        cls,
+        group_id: str | int,
+        defaults: dict | None = None,
+        *,
+        update_defaults: bool = False,
+    ) -> tuple[Self, bool]:
+        """获取或创建普通群记录，并收敛 channel_id=NULL 重复数据。
+
+        普通群固定使用 ``channel_id IS NULL``；频道记录必须继续显式传
+        ``channel_id`` 走原有 get_or_create/update_or_create。
+        """
+        gid = str(group_id).strip()
+        if not gid:
+            raise ValueError("group_id cannot be empty")
+
+        lock = cls._root_group_locks.setdefault(gid, asyncio.Lock())
+        async with lock:
+            defaults = cls._clean_root_group_defaults(defaults)
+            records = await cls.filter(group_id=gid, channel_id__isnull=True).all()
+            if records:
+                group = await cls._deduplicate_root_group_records(records)
+                if update_defaults:
+                    update_fields = []
+                    for field, value in defaults.items():
+                        if hasattr(group, field) and getattr(group, field) != value:
+                            setattr(group, field, value)
+                            update_fields.append(field)
+                    if update_fields:
+                        await group.save(update_fields=update_fields)
+                await GroupMemoryCache.upsert_from_model(group)
+                return group, False
+
+            group = await cls.create(group_id=gid, channel_id=None, **defaults)
+            return group, True
+
+    @classmethod
+    async def _get_or_create_group_for_write(
+        cls,
+        group_id: str,
+        channel_id: str | None,
+        defaults: dict | None = None,
+    ) -> tuple[Self, bool]:
+        defaults = cls._clean_root_group_defaults(defaults)
+        if channel_id:
+            return await cls.get_or_create(
+                group_id=group_id,
+                channel_id=channel_id,
+                defaults=defaults,
+            )
+        return await cls.get_or_create_root_group(group_id, defaults=defaults)
+
+    async def save(self, *args, **kwargs):
+        await super().save(*args, **kwargs)
+        await GroupMemoryCache.upsert_from_model(self)
+
+    async def delete(self, *args, **kwargs):
+        group_id = self.group_id
+        channel_id = self.channel_id
+        await super().delete(*args, **kwargs)
+        await GroupMemoryCache.remove(group_id, channel_id)
 
     @classmethod
     async def get_group(
@@ -243,17 +403,17 @@ class GroupConsole(Model):
         group_id: str,
         channel_id: str | None = None,
         clean_duplicates: bool = True,
+    ) -> "GroupSnapshot | None":
+        return GroupMemoryCache.get_if_ready(group_id, channel_id)
+
+    @classmethod
+    async def get_group_db(
+        cls,
+        group_id: str,
+        channel_id: str | None = None,
+        clean_duplicates: bool = True,
     ) -> Self | None:
-        """获取群组
-
-        参数:
-            group_id: 群组id
-            channel_id: 频道id
-            clean_duplicates: 是否删除重复的记录，仅保留最新的
-
-        返回:
-            Self: GroupConsole
-        """
+        """获取群组（数据库）"""
         if channel_id:
             return await cls.safe_get_or_none(
                 group_id=group_id,
@@ -268,49 +428,32 @@ class GroupConsole(Model):
 
     @classmethod
     async def is_super_group(cls, group_id: str) -> bool:
-        """是否超级用户指定群
-
-        参数:
-            group_id: 群组id
-
-        返回:
-            bool: 是否超级用户指定群
-        """
-        return group.is_super if (group := await cls.get_group(group_id)) else False
+        group = GroupMemoryCache.get_if_ready(group_id, None)
+        return bool(group and group.is_super)
 
     @classmethod
     async def is_superuser_block_plugin(cls, group_id: str, module: str) -> bool:
-        """查看群组是否超级用户禁用功能
-
-        参数:
-            group_id: 群组id
-            module: 模块名称
-
-        返回:
-            bool: 是否禁用被动
-        """
-        return await cls.exists(
-            group_id=group_id,
-            superuser_block_plugin__contains=add_disable_marker(module),
-        )
+        if group := GroupMemoryCache.get_if_ready(group_id, None):
+            return bool(
+                group.superuser_block_plugin_set
+                and module in group.superuser_block_plugin_set
+            )
+        else:
+            return False
 
     @classmethod
     async def is_block_plugin(cls, group_id: str, module: str) -> bool:
-        """查看群组是否禁用插件
-
-        参数:
-            group_id: 群组id
-            plugin: 插件名称
-
-        返回:
-            bool: 是否禁用插件
-        """
-        module = add_disable_marker(module)
-        return await cls.exists(
-            group_id=group_id, block_plugin__contains=module
-        ) or await cls.exists(
-            group_id=group_id, superuser_block_plugin__contains=module
-        )
+        if group := GroupMemoryCache.get_if_ready(group_id, None):
+            return (
+                True
+                if group.block_plugin_set and module in group.block_plugin_set
+                else bool(
+                    group.superuser_block_plugin_set
+                    and module in group.superuser_block_plugin_set
+                )
+            )
+        else:
+            return False
 
     @classmethod
     async def set_block_plugin(
@@ -319,6 +462,7 @@ class GroupConsole(Model):
         module: str,
         is_superuser: bool = False,
         platform: str | None = None,
+        channel_id: str | None = None,
     ):
         """禁用群组插件
 
@@ -328,8 +472,10 @@ class GroupConsole(Model):
             is_superuser: 是否为超级用户
             platform: 平台
         """
-        group, _ = await cls.get_or_create(
-            group_id=group_id, defaults={"platform": platform}
+        group, _ = await cls._get_or_create_group_for_write(
+            group_id=group_id,
+            channel_id=channel_id,
+            defaults={"platform": platform},
         )
         update_fields = []
         if is_superuser:
@@ -358,6 +504,7 @@ class GroupConsole(Model):
         module: str,
         is_superuser: bool = False,
         platform: str | None = None,
+        channel_id: str | None = None,
     ):
         """禁用群组插件
 
@@ -367,8 +514,10 @@ class GroupConsole(Model):
             is_superuser: 是否为超级用户
             platform: 平台
         """
-        group, _ = await cls.get_or_create(
-            group_id=group_id, defaults={"platform": platform}
+        group, _ = await cls._get_or_create_group_for_write(
+            group_id=group_id,
+            channel_id=channel_id,
+            defaults={"platform": platform},
         )
         update_fields = []
         if is_superuser:
@@ -394,69 +543,43 @@ class GroupConsole(Model):
     async def is_normal_block_plugin(
         cls, group_id: str, module: str, channel_id: str | None = None
     ) -> bool:
-        """查看群组是否禁用功能
-
-        参数:
-            group_id: 群组id
-            module: 模块名称
-            channel_id: 频道id
-
-        返回:
-            bool: 是否禁用被动
-        """
-        return await cls.exists(
-            group_id=group_id,
-            channel_id=channel_id,
-            block_plugin__contains=f"<{module},",
-        )
+        if group := GroupMemoryCache.get_if_ready(group_id, channel_id):
+            return bool(group.block_plugin_set and module in group.block_plugin_set)
+        else:
+            return False
 
     @classmethod
     async def is_superuser_block_task(cls, group_id: str, task: str) -> bool:
-        """查看群组是否超级用户禁用被动
-
-        参数:
-            group_id: 群组id
-            task: 模块名称
-
-        返回:
-            bool: 是否禁用被动
-        """
-        return await cls.exists(
-            group_id=group_id,
-            superuser_block_task__contains=add_disable_marker(task),
-        )
+        if group := GroupMemoryCache.get_if_ready(group_id, None):
+            return bool(
+                group.superuser_block_task_set
+                and task in group.superuser_block_task_set
+            )
+        else:
+            return False
 
     @classmethod
     async def is_block_task(
         cls, group_id: str, task: str, channel_id: str | None = None
     ) -> bool:
-        """查看群组是否禁用被动
-
-        参数:
-            group_id: 群组id
-            task: 任务模块
-            channel_id: 频道id
-
-        返回:
-            bool: 是否禁用被动
-        """
-        task = add_disable_marker(task)
         if not channel_id:
-            return await cls.exists(
-                group_id=group_id,
-                channel_id__isnull=True,
-                block_task__contains=task,
-            ) or await cls.exists(
-                group_id=group_id,
-                channel_id__isnull=True,
-                superuser_block_task__contains=task,
+            group = GroupMemoryCache.get_if_ready(group_id, None)
+            if not group:
+                return False
+            if group.block_task_set and task in group.block_task_set:
+                return True
+            return bool(
+                group.superuser_block_task_set
+                and task in group.superuser_block_task_set
             )
-        return await cls.exists(
-            group_id=group_id, channel_id=channel_id, block_task__contains=task
-        ) or await cls.exists(
-            group_id=group_id,
-            channel_id__isnull=True,
-            superuser_block_task__contains=task,
+        group = GroupMemoryCache.get_if_ready(group_id, channel_id)
+        if group and group.block_task_set and task in group.block_task_set:
+            return True
+        super_group = GroupMemoryCache.get_if_ready(group_id, None)
+        return bool(
+            super_group
+            and super_group.superuser_block_task_set
+            and task in super_group.superuser_block_task_set
         )
 
     @classmethod
@@ -466,6 +589,7 @@ class GroupConsole(Model):
         task: str,
         is_superuser: bool = False,
         platform: str | None = None,
+        channel_id: str | None = None,
     ):
         """禁用群组插件
 
@@ -475,13 +599,15 @@ class GroupConsole(Model):
             is_superuser: 是否为超级用户
             platform: 平台
         """
-        group, _ = await cls.get_or_create(
-            group_id=group_id, defaults={"platform": platform}
+        group, _ = await cls._get_or_create_group_for_write(
+            group_id=group_id,
+            channel_id=channel_id,
+            defaults={"platform": platform},
         )
         update_fields = []
         if is_superuser:
             superuser_block_task = convert_module_format(group.superuser_block_task)
-            if task not in group.superuser_block_task:
+            if task not in superuser_block_task:
                 superuser_block_task.append(task)
                 group.superuser_block_task = convert_module_format(superuser_block_task)
                 update_fields.append("superuser_block_task")
@@ -503,6 +629,7 @@ class GroupConsole(Model):
         task: str,
         is_superuser: bool = False,
         platform: str | None = None,
+        channel_id: str | None = None,
     ):
         """禁用群组插件
 
@@ -512,8 +639,10 @@ class GroupConsole(Model):
             is_superuser: 是否为超级用户
             platform: 平台
         """
-        group, _ = await cls.get_or_create(
-            group_id=group_id, defaults={"platform": platform}
+        group, _ = await cls._get_or_create_group_for_write(
+            group_id=group_id,
+            channel_id=channel_id,
+            defaults={"platform": platform},
         )
         update_fields = []
         if is_superuser:
@@ -536,10 +665,12 @@ class GroupConsole(Model):
     @classmethod
     def _run_script(cls):
         return [
-            "ALTER TABLE group_console ADD superuser_block_plugin"
-            " character varying(255) NOT NULL DEFAULT '';",
-            "ALTER TABLE group_console ADD superuser_block_task"
-            " character varying(255) NOT NULL DEFAULT '';",
-            "CREATE INDEX idx_group_console_group_id ON group_console(group_id);",
-            "CREATE INDEX idx_group_console_group_null_channel ON group_console(group_id) WHERE channel_id IS NULL;",  # 单独创建channel为空的索引 # noqa: E501
+            CreateIndex(
+                "group_console",
+                ("group_id",),
+                name="idx_group_console_group_null_channel",
+                where="channel_id IS NULL",
+            ),
+            AlterColumnType("group_console", "block_plugin", "TEXT"),
+            AlterColumnType("group_console", "block_task", "TEXT"),
         ]

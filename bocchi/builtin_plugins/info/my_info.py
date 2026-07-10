@@ -75,14 +75,15 @@ OCC = [
 ]
 
 lik2level = {
-    2280: 8,
-    1390: 7,
-    840: 6,
-    500: 5,
-    290: 4,
-    160: 3,
-    80: 2,
-    30: 1,
+    5120: 9,
+    2560: 8,
+    1280: 7,
+    640: 6,
+    320: 5,
+    160: 4,
+    80: 3,
+    40: 2,
+    20: 1,
     0: 0,
 }
 
@@ -162,7 +163,7 @@ async def get_user_info(
             "nickname": nickname,
             "title": "勇 者",
             "race": random.choice(RACE)+"(随机)",
-            "sex": random.choice(SEX),
+            # "sex": random.choice(SEX),
             "occupation": random.choice(OCC)+"(随机)",
             "uid": uid,
             "description": (

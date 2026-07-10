@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime
 import os
 from pathlib import Path
@@ -17,6 +18,10 @@ from bocchi.models.group_console import GroupConsole
 from bocchi.models.group_member_info import GroupInfoUser
 from bocchi.models.level_user import LevelUser
 from bocchi.models.plugin_info import PluginInfo
+from bocchi.services.hot_query_cache import (
+    invalidate_group_members,
+    invalidate_member_names,
+)
 from bocchi.services.log import logger
 from bocchi.utils.common_utils import CommonUtils
 from bocchi.utils.enum import RequestHandleType
@@ -32,6 +37,57 @@ limit_cd = base_config.get("welcome_msg_cd")
 WELCOME_PATH = DATA_PATH / "welcome_message"
 
 DEFAULT_IMAGE_PATH = IMAGE_PATH / "qxz"
+
+_API_SEMAPHORE = asyncio.Semaphore(4)
+_API_TIMEOUT = 5.0
+_REFRESH_TASKS: set[asyncio.Task] = set()
+
+
+def _normalize_platform(platform: str | set[str] | None) -> str | None:
+    return next(iter(platform), None) if isinstance(platform, set) else platform
+
+
+async def _safe_get_group_member_info(bot: Bot, group_id: str, user_id: str) -> dict:
+    async with _API_SEMAPHORE:
+        try:
+            return await asyncio.wait_for(
+                bot.get_group_member_info(
+                    group_id=int(group_id), user_id=int(user_id), no_cache=True
+                ),
+                timeout=_API_TIMEOUT,
+            )
+        except (asyncio.TimeoutError, ActionFailed, Exception) as e:
+            logger.warning("获取用户信息失败", e=e)
+            return {"user_id": user_id, "group_id": group_id, "nickname": ""}
+
+
+async def _safe_get_group_info(bot: Bot, group_id: str) -> dict | None:
+    async with _API_SEMAPHORE:
+        try:
+            return await asyncio.wait_for(
+                bot.get_group_info(group_id=group_id),
+                timeout=_API_TIMEOUT,
+            )
+        except (asyncio.TimeoutError, ActionFailed, Exception) as e:
+            logger.warning("获取群信息失败", e=e)
+            return None
+
+
+async def _refresh_member_info_async(
+    bot: Bot, group_id: str, user_id: str, platform: str | None
+) -> None:
+    user_info = await _safe_get_group_member_info(bot, group_id, user_id)
+    await GroupInfoUser.update_or_create(
+        user_id=str(user_info["user_id"]),
+        group_id=str(user_info["group_id"]),
+        defaults={
+            "user_name": user_info.get("nickname") or "",
+            "nickname": user_info.get("card") or user_info.get("nickname") or "",
+            "platform": platform,
+        },
+    )
+    await invalidate_group_members(group_id, [user_id])
+    await invalidate_member_names([user_id])
 
 
 class GroupManager:
@@ -53,11 +109,22 @@ class GroupManager:
             await group.save(update_fields=["group_flag"])
         else:
             block_plugin = ""
-            if plugin_list := await PluginInfo.filter(default_status=False).all():
+            if plugin_list := await PluginInfo.get_plugins(
+                load_status=None,
+                filter_parent=False,
+                default_status=False,
+            ):
                 for plugin in plugin_list:
                     block_plugin += f"<{plugin.module},"
-            group_info = await bot.get_group_info(group_id=group_id)
-            await GroupConsole.update_or_create(
+            group_info = await _safe_get_group_info(bot, group_id)
+            if not group_info:
+                logger.warning(
+                    "获取群信息失败，跳过群信息写入",
+                    "入群检测",
+                    group_id=group_id,
+                )
+                return
+            await GroupConsole.get_or_create_root_group(
                 group_id=group_info["group_id"],
                 defaults={
                     "group_name": group_info["group_name"],
@@ -67,6 +134,7 @@ class GroupManager:
                     "block_plugin": block_plugin,
                     "platform": "qq",
                 },
+                update_defaults=True,
             )
 
     @classmethod
@@ -238,7 +306,7 @@ class GroupManager:
         image = DEFAULT_IMAGE_PATH / random.choice(os.listdir(DEFAULT_IMAGE_PATH))
         await MessageUtils.build_message(
             [
-                "新人快跑啊！！本群现状↓",
+                "新人快跑啊！！本群现状↓（快使用自定义群欢迎消息！）",
                 image,
             ]
         ).send()
@@ -259,22 +327,29 @@ class GroupManager:
             else:
                 group_id = session.group.id
         join_time = datetime.now()
-        try:
-            user_info = await bot.get_group_member_info(
-                group_id=int(group_id), user_id=int(user_id), no_cache=True
-            )
-        except ActionFailed as e:
-            logger.warning("获取用户信息识别...", e=e)
-            user_info = {"user_id": user_id, "group_id": group_id, "nickname": ""}
+        user_name = getattr(session.user, "name", None) or getattr(
+            session.user, "nick", None
+        )
+        platform = PlatformUtils.get_platform(session)
         await GroupInfoUser.update_or_create(
-            user_id=str(user_info["user_id"]),
-            group_id=str(user_info["group_id"]),
+            user_id=str(user_id),
+            group_id=str(group_id),
             defaults={
-                "user_name": user_info["nickname"],
+                "user_name": user_name or "",
                 "user_join_time": join_time,
+                "platform": platform,
             },
         )
-        logger.info(f"用户{user_info['user_id']} 所属{user_info['group_id']} 更新成功")
+        await invalidate_group_members(group_id, [user_id])
+        await invalidate_member_names([user_id])
+        task = asyncio.create_task(
+            _refresh_member_info_async(
+                bot, str(group_id), str(user_id), _normalize_platform(platform)
+            )
+        )
+        _REFRESH_TASKS.add(task)
+        task.add_done_callback(_REFRESH_TASKS.discard)
+        logger.info(f"用户{user_id} 所属{group_id} 更新成功")
         if not await CommonUtils.task_is_block(
             session, "group_welcome"
         ) and cls._flmt.check(group_id):
@@ -295,7 +370,7 @@ class GroupManager:
             operator_name = user.user_name
         else:
             operator_name = "None"
-        group = await GroupConsole.get_group(group_id)
+        group = await GroupConsole.get_group_db(group_id)
         group_name = group.group_name if group else ""
         if group:
             await group.delete()
@@ -334,6 +409,8 @@ class GroupManager:
             user_name = f"{user_id}"
         if user:
             await user.delete()
+            await invalidate_group_members(group_id, [user_id])
+            await invalidate_member_names([user_id])
         logger.info(
             f"名称: {user_name} 退出群聊",
             "group_decrease_handle",
@@ -342,10 +419,14 @@ class GroupManager:
         )
         if sub_type == "kick":
             if operator_id != "0":
-                operator = await bot.get_group_member_info(
-                    user_id=int(operator_id), group_id=int(group_id)
+                operator_user = await GroupInfoUser.get_or_none(
+                    user_id=operator_id, group_id=group_id
                 )
-                operator_name = operator["card"] or operator["nickname"]
+                operator_name = (
+                    (operator_user.user_name or operator_id)
+                    if operator_user
+                    else operator_id
+                )
             else:
                 operator_name = ""
             return f"{user_name} 被 {operator_name} 送走了."

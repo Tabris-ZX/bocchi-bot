@@ -1,3 +1,5 @@
+from collections.abc import Callable
+import random
 import re
 from typing import overload
 
@@ -5,10 +7,14 @@ from nonebot.adapters import Bot
 from nonebot_plugin_uninfo import Session, SupportScope, Uninfo, get_interface
 
 from bocchi.configs.config import BotConfig
-from bocchi.models.ban_console import BanConsole
-from bocchi.models.bot_console import BotConsole
+from bocchi.configs.path_config import THEMES_PATH
 from bocchi.models.group_console import GroupConsole
-from bocchi.models.task_info import TaskInfo
+from bocchi.services.cache.runtime_cache import (
+    BanMemoryCache,
+    BotMemoryCache,
+    GroupMemoryCache,
+    TaskInfoMemoryCache,
+)
 from bocchi.services.log import logger
 
 
@@ -17,48 +23,51 @@ class CommonUtils:
     async def task_is_block(
         cls, session: Uninfo | Bot, module: str, group_id: str | None = None
     ) -> bool:
-        """判断被动技能是否可以发送
+        """判断被动技能是否被阻断。
+
+        运行真源固定为 TaskInfo.status/load_status、BotConsole.block_tasks、
+        GroupConsole.block_task/superuser_block_task，以及 bot/group ban 状态。
+        BotConsole.available_tasks 只用于管理展示，不作为运行白名单。
 
         参数:
             module: 被动技能模块名
             group_id: 群组id
 
         返回:
-            bool: 是否可以发送
+            bool: True 表示被动技能应被阻断，False 表示允许继续执行
         """
         if isinstance(session, Bot):
             if interface := get_interface(session):
                 info = interface.basic_info()
                 if info["scope"] == SupportScope.qq_api:
-                    logger.info("q官bot放弃所有被动技能发言...")
-                    """q官bot放弃所有被动技能发言"""
-                    return False
-        if session.scene == SupportScope.qq_api:
-            """q官bot放弃所有被动技能发言"""
-            logger.info("q官bot放弃所有被动技能发言...")
-            return False
+                    logger.debug("q官bot放弃所有被动技能发言...")
+                    return True
+        if isinstance(session, Session) and session.scope == SupportScope.qq_api:
+            logger.debug("q官bot放弃所有被动技能发言...")
+            return True
         if not group_id and isinstance(session, Session):
             group_id = session.group.id if session.group else None
-        if task := await TaskInfo.get_or_none(module=module):
+        if await TaskInfoMemoryCache.is_runtime_disabled(module):
             """被动全局状态"""
-            if not task.status:
-                return True
-        if not await BotConsole.get_bot_status(session.self_id):
+            return True
+        bot_snapshot = await BotMemoryCache.get(session.self_id)
+        if bot_snapshot and not bot_snapshot.status:
             """bot是否休眠"""
             return True
-        block_tasks = await BotConsole.get_tasks(session.self_id, False)
-        if module in block_tasks:
-            """bot是否禁用被动"""
-            return True
+        if bot_snapshot:
+            block_tasks = cls.convert_module_format(bot_snapshot.block_tasks)
+            if module in block_tasks:
+                """bot是否禁用被动"""
+                return True
         if group_id:
             if await GroupConsole.is_block_task(group_id, module):
                 """群组是否禁用被动"""
                 return True
-            if g := await GroupConsole.get_group(group_id=group_id):
+            if g := GroupMemoryCache.get_if_ready(group_id, None):
                 """群组权限是否小于0"""
                 if g.level < 0:
                     return True
-            if await BanConsole.is_ban(None, group_id):
+            if BanMemoryCache.is_banned(None, group_id):
                 """群组是否被ban"""
                 return True
         return False
@@ -90,6 +99,31 @@ class CommonUtils:
             return [item.strip(",") for item in data.split("<") if item]
         elif isinstance(data, list):
             return "".join(cls.format(item) for item in data)
+
+    @staticmethod
+    def get_random_asset_factory(sub_path: str) -> Callable[[], str | None]:
+        """
+        创建一个从指定 assets 子目录随机选取资源的工厂函数。
+        用于 Pydantic 模型的 default_factory。
+
+        参数:
+            sub_path: 相对于 themes/default/assets/ 的子路径，例如 "ui/bocchi/down"
+        """
+
+        def _factory() -> str | None:
+            target_dir = THEMES_PATH / "default" / "assets" / sub_path
+            if not target_dir.exists():
+                return None
+
+            images = [
+                f.name
+                for f in target_dir.iterdir()
+                if f.is_file()
+                and f.suffix.lower() in [".png", ".jpg", ".jpeg", ".webp"]
+            ]
+            return f"{sub_path}/{random.choice(images)}" if images else None
+
+        return _factory
 
 
 class SqlUtils:
@@ -126,12 +160,15 @@ class SqlUtils:
 def format_usage_for_markdown(text: str) -> str:
     """
     智能地将Python多行字符串转换为适合Markdown渲染的格式。
-    - 将单个换行符替换为Markdown的硬换行（行尾加两个空格）。
+    - 在列表、标题等块级元素前自动插入换行，确保正确解析。
+    - 将段落内的单个换行符替换为Markdown的硬换行（行尾加两个空格）。
     - 保留两个或更多的连续换行符，使其成为Markdown的段落分隔。
     """
     if not text:
         return ""
-    text = re.sub(r"\n{2,}", "<<PARAGRAPH_BREAK>>", text)
-    text = text.replace("\n", "  \n")
-    text = text.replace("<<PARAGRAPH_BREAK>>", "\n\n")
+
+    text = re.sub(r"([^\n])\n(\s*[-*] |\s*#+\s|\s*>)", r"\1\n\n\2", text)
+
+    text = re.sub(r"(?<!\n)\n(?!\n)", "  \n", text)
+
     return text

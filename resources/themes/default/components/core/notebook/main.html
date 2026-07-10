@@ -1,0 +1,49 @@
+
+{% from 'partials/_component_macros.jinja' import wrapper %}
+{% call wrapper(data, 'notebook-container') %}
+    {% for element in data.elements %}
+    {% if element.type == "heading" %}
+    <h{{ element.level }} class="notebook-heading-{{ element.level }}">
+        {{ element.text }}
+    </h{{ element.level }}>
+
+    {% elif element.type == "paragraph" %}
+    <div class="notebook-paragraph markdown-content">{{ element.text | md | safe }}</div>
+
+    {% elif element.type == "image" %}
+    <div class="notebook-image-container">
+        <img src="{{ element.src }}" alt="{{ element.caption }}" class="notebook-image">
+        {% if element.caption %}
+        <p class="notebook-image-caption">{{ element.caption }}</p>
+        {% endif %}
+    </div>
+
+    {% elif element.type == "blockquote" %}
+    <blockquote class="notebook-quote markdown-content">{{ element.text | md | safe }}</blockquote>
+
+    {% elif element.type == "code" %}
+    <pre class="notebook-code"><code class="{{ element.language }}">{{ element.code }}</code></pre>
+
+    {% elif element.type == "list" %}
+    {% if element.ordered %}
+    <ol class="notebook-list">
+        {% else %}
+        <ul class="notebook-list">
+            {% endif %}
+            {% for item in element.data %}
+            <li>{{ item | md | safe }}</li>
+            {% endfor %}
+            {% if element.ordered %}
+    </ol>
+    {% else %}
+    </ul>
+    {% endif %}
+
+    {% elif element.type == "divider" %}
+    <hr class="notebook-divider">
+
+   {% elif element.type == "component" %}
+    {{ render(element.component) }}
+{% endif %}
+    {% endfor %}
+{% endcall %}

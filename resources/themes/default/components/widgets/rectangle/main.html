@@ -1,0 +1,13 @@
+{% endif %}
+
+{% block component_content %}
+{% from 'partials/_component_macros.jinja' import wrapper %}
+{% call wrapper(data, 'rectangle-wrapper') %}
+    <div style="
+        height: {{ data.height }};
+        background-color: {{ data.background_color }};
+        border: {{ data.border }};
+        border-radius: {{ data.border_radius }};
+        box-sizing: border-box;
+    "></div>
+{% endcall %}

@@ -1,0 +1,38 @@
+{% if not frameless %}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}{{ data.title }}{% endblock %}</title>
+
+    <style>
+        {% include 'theme.css.jinja' %}
+    </style>
+
+    <script src="{{ asset('js/echarts.min.js') }}"></script>
+
+    <style>
+        html, body {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+    </style>
+    {% block head_extra %}{% endblock %}
+</head>
+<body>
+{% endif %}
+
+{% block body_content %}{% endblock %}
+<script type="text/javascript">
+    var chartDom = document.getElementById('{{ data.chart_id }}');
+    var myChart = echarts.init(chartDom);
+    myChart.setOption(option);
+</script>
+
+{% if not frameless %}
+</body>
+</html>
+{% endif %}

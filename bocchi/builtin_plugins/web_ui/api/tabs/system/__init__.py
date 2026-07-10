@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 from bocchi.utils._build_image import BuildImage
 
 from ....base_model import Result, SystemFolderSize
-from ....utils import authentication, get_system_disk, validate_path
+from ....utils import authentication, get_system_disk, validate_filename, validate_path
 from .model import AddFile, DeleteFile, DirFile, RenameFile, SaveFile
 
 router = APIRouter(prefix="/system")
@@ -120,11 +120,22 @@ async def _(param: RenameFile) -> Result:
     if not parent_path:
         return Result.fail("无效的路径")
 
-    path = (parent_path / param.old_name) if param.parent else Path(param.old_name)
+    if err := validate_filename(param.old_name):
+        return Result.fail(err)
+    if err := validate_filename(param.name):
+        return Result.fail(err)
+
+    root = os.path.realpath(Path())
+    path = Path(os.path.realpath(parent_path / param.old_name))
+    if not str(path).startswith(root + os.sep):
+        return Result.fail("访问路径超出允许范围")
     if not path.exists():
         return Result.warning_("文件不存在...")
     try:
-        path.rename(path.parent / param.name)
+        dest = Path(os.path.realpath(path.parent / param.name))
+        if not str(dest).startswith(root + os.sep):
+            return Result.fail("目标路径超出允许范围")
+        path.rename(dest)
         return Result.ok("重命名成功!")
     except Exception as e:
         return Result.warning_(f"重命名失败: {e!s}")
@@ -144,12 +155,22 @@ async def _(param: RenameFile) -> Result:
     if not parent_path:
         return Result.fail("无效的路径")
 
-    path = (parent_path / param.old_name) if param.parent else Path(param.old_name)
+    if err := validate_filename(param.old_name):
+        return Result.fail(err)
+    if err := validate_filename(param.name):
+        return Result.fail(err)
+
+    root = os.path.realpath(Path())
+    path = Path(os.path.realpath(parent_path / param.old_name))
+    if not str(path).startswith(root + os.sep):
+        return Result.fail("访问路径超出允许范围")
     if not path.exists() or path.is_file():
         return Result.warning_("文件夹不存在...")
     try:
-        new_path = path.parent / param.name
-        shutil.move(path.absolute(), new_path.absolute())
+        dest = Path(os.path.realpath(path.parent / param.name))
+        if not str(dest).startswith(root + os.sep):
+            return Result.fail("目标路径超出允许范围")
+        shutil.move(path.absolute(), dest)
         return Result.ok("重命名成功!")
     except Exception as e:
         return Result.warning_(f"重命名失败: {e!s}")
@@ -169,11 +190,19 @@ async def _(param: AddFile) -> Result:
     if not parent_path:
         return Result.fail("无效的路径")
 
+    if err := validate_filename(param.name):
+        return Result.fail(err)
+
     path = (parent_path / param.name) if param.parent else Path(param.name)
+    # 二次确认拼接后路径仍在允许范围内
+    resolved, err = validate_path(str(path))
+    if err or not resolved:
+        return Result.fail(err or "无效的路径")
+    path = resolved
     if path.exists():
         return Result.warning_("文件已存在...")
     try:
-        path.open("w")
+        path.touch()
         return Result.ok("新建文件成功!")
     except Exception as e:
         return Result.warning_(f"新建文件失败: {e!s}")
@@ -193,7 +222,15 @@ async def _(param: AddFile) -> Result:
     if not parent_path:
         return Result.fail("无效的路径")
 
+    if err := validate_filename(param.name):
+        return Result.fail(err)
+
     path = (parent_path / param.name) if param.parent else Path(param.name)
+    # 二次确认拼接后路径仍在允许范围内
+    resolved, err = validate_path(str(path))
+    if err or not resolved:
+        return Result.fail(err or "无效的路径")
+    path = resolved
     if path.exists():
         return Result.warning_("文件夹已存在...")
     try:

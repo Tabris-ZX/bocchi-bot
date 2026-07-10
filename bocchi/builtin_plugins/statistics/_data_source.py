@@ -1,13 +1,59 @@
-from tortoise.functions import Count
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 
 from bocchi.models.group_console import GroupConsole
-from bocchi.models.group_member_info import GroupInfoUser
 from bocchi.models.plugin_info import PluginInfo
-from bocchi.models.statistics import Statistics
+from bocchi.services.hot_query_cache import (
+    get_member_name,
+    get_statistics_plugin_counts_cached,
+)
 from bocchi.utils.echart_utils import ChartUtils
 from bocchi.utils.echart_utils.models import Barh
 from bocchi.utils.enum import PluginType
 from bocchi.utils.time_utils import TimeUtils
+
+
+@dataclass(frozen=True)
+class _StatisticsPeriod:
+    title: str
+    start_time: datetime | None
+
+
+def _get_statistics_period(search_type: str | None) -> _StatisticsPeriod:
+    if search_type == "day":
+        return _StatisticsPeriod("日(1天)", TimeUtils.get_day_start())
+    if search_type == "week":
+        return _StatisticsPeriod(
+            "周(7天)",
+            TimeUtils.get_day_start(
+                datetime.now(TimeUtils.DEFAULT_TIMEZONE) - timedelta(days=6)
+            ),
+        )
+    if search_type == "month":
+        return _StatisticsPeriod(
+            "月(30天)",
+            TimeUtils.get_day_start(
+                datetime.now(TimeUtils.DEFAULT_TIMEZONE) - timedelta(days=29)
+            ),
+        )
+    return _StatisticsPeriod("", None)
+
+
+def _build_statistics_title(
+    *,
+    target_name: str | None,
+    is_global: bool,
+    period_title: str,
+) -> str:
+    title = f"{period_title}功能调用统计" if period_title else "功能调用统计"
+    prefixes: list[str] = []
+    if target_name:
+        prefixes.append(target_name)
+    if is_global:
+        prefixes.append("全局")
+    if prefixes:
+        return f"{' '.join(prefixes)} {title}"
+    return title
 
 
 class StatisticsManage:
@@ -20,55 +66,49 @@ class StatisticsManage:
         user_id: str | None = None,
         group_id: str | None = None,
     ):
-        day = None
-        day_type = ""
-        if search_type == "day":
-            day = 1
-            day_type = "日"
-        elif search_type == "month":
-            day = 30
-            day_type = "月"
-        elif search_type == "week":
-            day = 7
-            day_type = "周"
-        if day_type:
-            day_type += f"({day}天)"
-        title = ""
+        period = _get_statistics_period(search_type)
         if user_id:
             """查用户"""
-            query = GroupInfoUser.filter(user_id=user_id)
-            if group_id:
-                query = query.filter(group_id=group_id)
-            user = await query.first()
-            title = f"{user.user_name if user else user_id} {day_type}功能调用统计"
+            user_name = await get_member_name(user_id, group_id)
+            title = _build_statistics_title(
+                target_name=user_name or user_id,
+                is_global=is_global and not group_id,
+                period_title=period.title,
+            )
         elif group_id:
             """查群组"""
             group = await GroupConsole.get_group(group_id=group_id)
-            title = f"{group.group_name if group else group_id} {day_type}功能调用统计"
+            title = _build_statistics_title(
+                target_name=group.group_name if group else group_id,
+                is_global=False,
+                period_title=period.title,
+            )
         else:
-            title = "功能调用统计"
+            title = _build_statistics_title(
+                target_name=None,
+                is_global=is_global,
+                period_title=period.title,
+            )
         if is_global and not user_id:
-            title = f"全局 {title}"
-            return await cls.get_global_statistics(plugin_name, day, title)
+            return await cls.get_global_statistics(
+                plugin_name, period.start_time, title
+            )
         if user_id:
-            return await cls.get_my_statistics(user_id, group_id, day, title)
+            return await cls.get_my_statistics(
+                user_id, group_id, period.start_time, title
+            )
         if group_id:
-            return await cls.get_group_statistics(group_id, day, title)
+            return await cls.get_group_statistics(group_id, period.start_time, title)
         return None
 
     @classmethod
     async def get_global_statistics(
-        cls, plugin_name: str | None, day: int | None, title: str
+        cls, plugin_name: str | None, start_time: datetime | None, title: str
     ) -> bytes | str:
-        query = Statistics
-        if plugin_name:
-            query = query.filter(plugin_name=plugin_name)
-        if day:
-            query = query.filter(create_time__gte=TimeUtils.get_day_start())
-        data_list = (
-            await query.annotate(count=Count("id"))
-            .group_by("plugin_name")
-            .values_list("plugin_name", "count")
+        data_list = await get_statistics_plugin_counts_cached(
+            "global",
+            plugin_name=plugin_name,
+            start_time=start_time,
         )
         return (
             await cls.__build_image(data_list, title)
@@ -78,17 +118,18 @@ class StatisticsManage:
 
     @classmethod
     async def get_my_statistics(
-        cls, user_id: str, group_id: str | None, day: int | None, title: str
+        cls,
+        user_id: str,
+        group_id: str | None,
+        start_time: datetime | None,
+        title: str,
     ):
-        query = Statistics.filter(user_id=user_id)
-        if group_id:
-            query = query.filter(group_id=group_id)
-        if day:
-            query = query.filter(create_time__gte=TimeUtils.get_day_start())
-        data_list = (
-            await query.annotate(count=Count("id"))
-            .group_by("plugin_name")
-            .values_list("plugin_name", "count")
+        data_list = await get_statistics_plugin_counts_cached(
+            "user",
+            plugin_name=None,
+            start_time=start_time,
+            user_id=user_id,
+            group_id=group_id,
         )
         return (
             await cls.__build_image(data_list, title)
@@ -97,14 +138,14 @@ class StatisticsManage:
         )
 
     @classmethod
-    async def get_group_statistics(cls, group_id: str, day: int | None, title: str):
-        query = Statistics.filter(group_id=group_id)
-        if day:
-            query = query.filter(create_time__gte=TimeUtils.get_day_start())
-        data_list = (
-            await query.annotate(count=Count("id"))
-            .group_by("plugin_name")
-            .values_list("plugin_name", "count")
+    async def get_group_statistics(
+        cls, group_id: str, start_time: datetime | None, title: str
+    ):
+        data_list = await get_statistics_plugin_counts_cached(
+            "group",
+            plugin_name=None,
+            start_time=start_time,
+            group_id=group_id,
         )
         return (
             await cls.__build_image(data_list, title)
@@ -115,11 +156,12 @@ class StatisticsManage:
     @classmethod
     async def __build_image(cls, data_list: list[tuple[str, int]], title: str) -> bytes:
         module2count = {x[0]: x[1] for x in data_list}
-        plugin_info = await PluginInfo.filter(
-            module__in=module2count.keys(),
+        plugin_info = await PluginInfo.get_plugins(
+            module__in=list(module2count.keys()),
             load_status=True,
+            filter_parent=False,
             plugin_type=PluginType.NORMAL,
-        ).all()
+        )
         x_index = []
         data = []
         for plugin in plugin_info:

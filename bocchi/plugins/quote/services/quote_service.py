@@ -1,26 +1,24 @@
 import os
-import random
 from pathlib import Path
-from typing import ClassVar, Any
+import random
 import base64
+from typing import Any, ClassVar
 
-from nonebot_plugin_htmlrender import template_to_pic
+from cachetools import TTLCache
+from nonebot.adapters.onebot.v11 import Bot
 from tortoise.expressions import Q
 from tortoise.functions import Count
-from nonebot.adapters.onebot.v11 import Bot
 
-from bocchi.configs.config import Config
+from bocchi import ui
 from bocchi.models.group_member_info import GroupInfoUser
-from bocchi.services.log import logger
-from bocchi.services.data_access import DataAccess
+from bocchi.services import avatar_service, logger
 from bocchi.utils.echart_utils import ChartUtils
 from bocchi.utils.echart_utils.models import Barh
-from bocchi.utils.image_utils import BuildImage
 from bocchi.utils.platform import PlatformUtils
+import aiofiles
 
-from ..config import DATA_PATH, QUOTE_ASSETS_PATH, resolve_quote_image_path
-from ..model import Quote
-from .theme_service import theme_service
+from ..config import DATA_PATH, resolve_quote_image_path
+from ..model import HotQuoteItemData, HotQuotesPageData, Quote, QuoteCardData
 
 try:
     import spacy_pkuseg as pkuseg
@@ -38,40 +36,12 @@ except ImportError:
 
     seg = DummySeg()
 
-quote_dao = DataAccess(Quote)
-
 
 class QuoteService:
     """语录服务类"""
 
-    _recent_quotes: ClassVar[dict[str, list[int]]] = {}
-    _max_memory_size: ClassVar[int] = 10
-
-    @staticmethod
-    async def check_duplicate_text_quote(
-        group_id: str, recorded_text: str, quoted_user_id: str
-    ) -> bool:
-        """
-        仅检查基于文本的语录是否重复，不执行添加操作。
-        返回: True 如果重复，否则 False。
-        """
-        logger.info(
-            f"开始检查重复文本语录 - 群组: {group_id}, 用户: {quoted_user_id}",
-            "群聊语录",
-        )
-        existing_quote = await Quote.filter(
-            group_id=group_id,
-            recorded_text=recorded_text,
-            quoted_user_id=str(quoted_user_id),
-        ).first()
-
-        if existing_quote:
-            logger.warning(
-                f"发现重复文本语录 - 群组: {group_id}, 已存在ID: {existing_quote.id}",
-                "群聊语录",
-            )
-            return True
-        return False
+    _recent_quotes: ClassVar[TTLCache] = TTLCache(maxsize=1000, ttl=600)
+    _max_history_per_key: ClassVar[int] = 10
 
     @staticmethod
     async def add_quote(
@@ -91,29 +61,13 @@ class QuoteService:
                 f"开始添加语录 - 群组: {group_id}, 图片路径: {image_path}, 被记录用户: {quoted_user_id}, 上传者: {uploader_user_id}",
                 "群聊语录",
             )
-
-            query_conditions = []
             if image_hash:
-                query_conditions.append(Q(image_hash=image_hash))
-
-            if recorded_text and quoted_user_id:
-                query_conditions.append(
-                    Q(recorded_text=recorded_text, quoted_user_id=quoted_user_id)
-                )
-
-            if query_conditions:
-                final_condition = query_conditions[0]
-                for condition in query_conditions[1:]:
-                    final_condition |= condition
-
-                existing_quote = (
-                    await Quote.filter(group_id=group_id)
-                    .filter(final_condition)
-                    .first()
-                )
+                existing_quote = await Quote.filter(
+                    group_id=group_id, image_hash=image_hash
+                ).first()
                 if existing_quote:
                     logger.warning(
-                        f"发现相似或相同的语录 - 群组: {group_id}, 已存在ID: {existing_quote.id}",
+                        f"发现重复语录 (基于图片哈希值) - 群组: {group_id}, 已存在ID: {existing_quote.id}",
                         "群聊语录",
                     )
                     return existing_quote, False
@@ -121,16 +75,10 @@ class QuoteService:
             tags_source = ocr_content if ocr_content else recorded_text
             tags = QuoteService.cut_sentence(tags_source) if tags_source else []
 
-            try:
-                relative_image_path = os.path.relpath(image_path, DATA_PATH)
-                logger.debug(
-                    f"将绝对路径 '{image_path}' 转换为相对路径 '{relative_image_path}' 进行存储。"
-                )
-            except ValueError:
-                relative_image_path = image_path
-                logger.warning(f"无法为 '{image_path}' 计算相对路径，将按原样存储。")
+            relative_image_path = os.path.relpath(image_path, DATA_PATH)
+            relative_image_path = Path(relative_image_path).as_posix()
 
-            quote = await quote_dao.create(
+            quote = await Quote.create(
                 group_id=group_id,
                 image_path=relative_image_path,
                 image_hash=image_hash,
@@ -174,7 +122,7 @@ class QuoteService:
                 else:
                     logger.warning(f"图片文件不存在: {absolute_image_path}", "群聊语录")
 
-                await quote_dao.delete(id=quote.id)
+                await Quote.filter(id=quote.id).delete()
                 logger.info(
                     f"语录删除成功 - ID: {quote.id}, 群组: {group_id}", "群聊语录"
                 )
@@ -203,7 +151,7 @@ class QuoteService:
             if user_id_filter:
                 query_filters["quoted_user_id"] = user_id_filter
 
-            count = await quote_dao.count(**query_filters)
+            count = await Quote.filter(**query_filters).count()
             if count == 0:
                 logger.info(
                     f"群组 {group_id} 中 (用户: {user_id_filter or '任意'}) 没有语录",
@@ -213,13 +161,13 @@ class QuoteService:
 
             memory_key = f"{group_id}_{user_id_filter or 'all'}"
 
-            quotes = await quote_dao.filter(**query_filters)
+            quotes = await Quote.filter(**query_filters)
 
             if not quotes:
                 return None
 
-            recent_ids = cls._recent_quotes.get(memory_key, [])
-            if recent_ids and count > cls._max_memory_size:
+            recent_ids = cls._recent_quotes.get(memory_key) or []
+            if recent_ids and count > cls._max_history_per_key:
                 unseen_quotes = [q for q in quotes if q.id not in recent_ids]
                 if unseen_quotes:
                     quotes = unseen_quotes
@@ -271,7 +219,7 @@ class QuoteService:
         exact_match_query = Q(ocr_text__icontains=keyword) | Q(
             recorded_text__icontains=keyword
         )
-        exact_matches = await quote_dao.filter(exact_match_query, **base_filters)
+        exact_matches = await Quote.filter(exact_match_query, **base_filters)
 
         if exact_matches:
             logger.info(
@@ -296,7 +244,7 @@ class QuoteService:
 
             text_query_condition &= single_kw_text_condition
 
-        candidate_quotes = await quote_dao.filter(text_query_condition, **base_filters)
+        candidate_quotes = await Quote.filter(text_query_condition, **base_filters)
         logger.debug(
             f"数据库模糊搜索初步匹配到 {len(candidate_quotes)} 条语录", "群聊语录"
         )
@@ -391,7 +339,7 @@ class QuoteService:
                 "群聊语录",
             )
 
-            quotes = await quote_dao.filter(
+            quotes = await Quote.filter(
                 group_id=group_id, image_path__iendswith=image_basename
             )
             quote = quotes[0] if quotes else None
@@ -414,11 +362,19 @@ class QuoteService:
             return None
 
     @staticmethod
+    async def get_last_quote(group_id: str) -> Quote | None:
+        """获取群组内最后保存的一条语录"""
+        try:
+            return await Quote.filter(group_id=group_id).order_by("-id").first()
+        except Exception:
+            return None
+
+    @staticmethod
     async def get_all_quotes() -> list[Quote]:
         """获取所有语录"""
         try:
             logger.info("开始获取所有语录", "群聊语录")
-            quotes = await quote_dao.all()
+            quotes = await Quote.all()
             logger.info(f"获取所有语录成功 - 总数: {len(quotes)}", "群聊语录")
             return quotes
         except Exception as e:
@@ -477,7 +433,7 @@ class QuoteService:
         if not quotes:
             raise ValueError("语录列表为空")
 
-        recent_ids = cls._recent_quotes.get(memory_key, [])
+        recent_ids = cls._recent_quotes.get(memory_key) or []
         unseen_quotes = [q for q in quotes if q.id not in recent_ids]
 
         if unseen_quotes:
@@ -490,7 +446,7 @@ class QuoteService:
 
         cls._recent_quotes[memory_key].append(selected_quote.id)
 
-        if len(cls._recent_quotes[memory_key]) > cls._max_memory_size:
+        if len(cls._recent_quotes[memory_key]) > cls._max_history_per_key:
             cls._recent_quotes[memory_key].pop(0)
 
         return selected_quote
@@ -520,7 +476,7 @@ class QuoteService:
                     if value is not None:
                         query &= Q(**{key: value})
 
-            final_matched_quotes = await quote_dao.filter(query)
+            final_matched_quotes = await Quote.filter(query)
 
             logger.info(
                 f"找到 {len(final_matched_quotes)} 条与条件匹配的语录",
@@ -583,75 +539,35 @@ class QuoteService:
     @staticmethod
     async def generate_temp_quote(
         avatar_bytes: bytes,
-        text: str,
+        text: Any,
         author: str,
-        save_to_file: bool = False,
-        save_path: str | None = None,
-        style_name: str | None = None,
+        variant: str | None = None,
+        author_role: str | None = None,
+        author_title: str | None = None,
+        author_level: str | None = None,
+        quoted_reply: Any = None,
     ) -> bytes:
         """生成临时语录图片"""
         try:
-            final_style_name = style_name
-
-            if final_style_name:
-                try:
-                    theme_service.get_theme(final_style_name)
-                    logger.info(f"使用用户指定主题: {final_style_name}", "群聊语录")
-                except ValueError:
-                    logger.warning(
-                        f"用户指定的主题 '{final_style_name}' 不存在，将使用随机主题。"
-                    )
-                    final_style_name = None
-
-            if not final_style_name:
-                theme_pool = Config.get_config("quote", "QUOTE_THEME", ["classic"])
-
-                if "all" in theme_pool:
-                    all_themes_info = theme_service.list_themes()
-                    theme_pool = [theme["id"] for theme in all_themes_info]
-
-                available_themes = [t for t in theme_pool if t in theme_service._themes]
-
-                if not available_themes:
-                    logger.warning(
-                        "配置的主题池为空或所有主题均无效，将使用后备默认主题 'classic'。"
-                    )
-                    final_style_name = "classic"
-                else:
-                    final_style_name = random.choice(available_themes)
-
             logger.info(
-                f"开始生成临时语录图片 - 作者: {author}, 主题: {final_style_name}",
+                f"开始生成临时语录图片 - 作者: {author}, 皮肤(variant): {variant}",
                 "群聊语录",
             )
 
-            from ..services.image_service import ImageService
+            avatar_base64 = base64.b64encode(avatar_bytes).decode("utf-8")
 
-            img_data = await ImageService.generate_quote(
-                avatar_bytes=avatar_bytes,
+            quote_card = QuoteCardData(
+                avatar_data_url=f"data:image/png;base64,{avatar_base64}",
                 text=text,
                 author=author,
-                style_name=final_style_name,
+                author_role=author_role,
+                author_title=author_title,
+                author_level=author_level,
+                quoted_reply=quoted_reply,
+                variant=variant,
             )
 
-            if save_to_file:
-                import hashlib
-                import aiofiles
-                from ..config import quote_path
-
-                image_name = hashlib.md5(img_data).hexdigest() + ".png"
-                if save_path:
-                    image_path = Path(save_path)
-                else:
-                    from ..config import ensure_quote_path
-
-                    ensure_quote_path()
-                    image_path = quote_path / image_name
-
-                async with aiofiles.open(image_path, "wb") as file:
-                    await file.write(img_data)
-
-                logger.info(f"临时语录图片已保存到 {image_path}", "群聊语录")
+            img_data = await ui.render(quote_card)
 
             return img_data
         except Exception as e:
@@ -662,7 +578,7 @@ class QuoteService:
     async def increment_view_count(quote_id: int) -> None:
         """增加语录的查看次数"""
         try:
-            quote = await quote_dao.get_or_none(id=quote_id)
+            quote = await Quote.get_or_none(id=quote_id)
             if quote:
                 quote.view_count += 1
                 await quote.save(update_fields=["view_count"])
@@ -712,7 +628,7 @@ class QuoteService:
     @staticmethod
     async def generate_hottest_quotes_image(
         group_id: str, hottest_quotes: list[Quote], bot_self_id: str
-    ) -> BuildImage | str:
+    ) -> bytes | str:
         """使用HTML模板为热门语录列表生成一张汇总图片"""
         if not hottest_quotes:
             return f"群组 {group_id} 暂时没有热门语录。"
@@ -725,10 +641,12 @@ class QuoteService:
             avatar_base64 = ""
             if quote.quoted_user_id:
                 try:
-                    avatar_data = await PlatformUtils.get_user_avatar(
-                        quote.quoted_user_id, "qq", bot_self_id
+                    avatar_path = await avatar_service.get_avatar_path(
+                        platform="qq", identifier=quote.quoted_user_id
                     )
-                    if avatar_data:
+                    if avatar_path:
+                        async with aiofiles.open(avatar_path, "rb") as f:
+                            avatar_data = await f.read()
                         avatar_base64 = base64.b64encode(avatar_data).decode("utf-8")
                 except Exception as e:
                     logger.warning(
@@ -764,43 +682,29 @@ class QuoteService:
                 if os.path.exists(absolute_path):
                     image_path = f"file://{absolute_path}"
 
-            card_data = {
-                "rank": i + 1,
-                "user_name": user_name,
-                "avatar_data_url": f"data:image/png;base64,{avatar_base64}"
+            card_data = HotQuoteItemData(
+                rank=i + 1,
+                user_name=user_name,
+                avatar_data_url=f"data:image/png;base64,{avatar_base64}"
                 if avatar_base64
                 else "",
-                "preview_text": preview_text,
-                "is_image_quote": is_image_quote,
-                "image_path": image_path,
-                "view_count": quote.view_count,
-                "quote_id": quote.id,
-            }
+                preview_text=preview_text,
+                is_image_quote=is_image_quote,
+                image_path=image_path,
+                view_count=quote.view_count,
+                quote_id=quote.id,
+            )
             quote_cards_data.append(card_data)
 
-        template_data = {
-            "group_id": group_id,
-            "quotes": quote_cards_data,
-        }
+        page_data = HotQuotesPageData(
+            group_id=group_id,
+            quotes=quote_cards_data,
+        )
 
         try:
-            template_path = QUOTE_ASSETS_PATH / "templates"
-            template_name = "hot_quotes.html"
-
-            pic_bytes = await template_to_pic(
-                template_path=str(template_path.resolve()),
-                template_name=template_name,
-                templates=template_data,
-                pages={
-                    "viewport": {"width": 800, "height": 10},
-                    "base_url": f"file://{template_path.resolve()}",
-                },
-                wait=0,
-            )
-
+            pic_bytes = await ui.render(page_data)
             logger.info(f"群组 {group_id} 热门语录图片生成成功", "群聊语录")
-            return BuildImage.open(pic_bytes)
-
+            return pic_bytes
         except Exception as e:
             logger.error(f"使用HTML模板生成热门语录图片失败: {e}", "群聊语录", e=e)
             return "生成热门语录图片失败，请检查模板文件或日志。"
@@ -836,7 +740,7 @@ class QuoteService:
     @classmethod
     async def generate_bar_chart_for_prolific_users(
         cls, group_id: str, data: list[dict], title_prefix: str
-    ) -> BuildImage | str:
+    ) -> bytes | str:
         """为高产用户生成柱状图"""
         if not data:
             return f"{title_prefix}数据为空"
@@ -863,12 +767,12 @@ class QuoteService:
 
         barh_data = Barh(
             category_data=user_names,
-            data=counts,
+            data=counts,  # type: ignore
             title=f"群组 {group_id} {title_prefix}排行",
         )
         try:
             chart_image = await ChartUtils.barh(barh_data)
-            return chart_image
+            return chart_image  # type: ignore
         except Exception as e:
             logger.error(f"生成 {title_prefix} 图表失败: {e}", "群聊语录", e=e)
             return f"生成 {title_prefix} 图表失败: {e}"
@@ -881,15 +785,44 @@ class QuoteService:
             return []
 
         cut_words = seg.cut(text)
-        cut_words = list(set(cut_words))
+        cut_words_list: list[str] = list(set(str(word) for word in cut_words))
 
-        punctuation = ".,!?:;。，！？：；%$\n []()（）《》<>「」""'''-_+=*&^#@~`"
-        stopwords = ["的", "了", "是", "在", "我", "有", "和", "就", "不", "人", "都", "一", "一个", "上", "也", "很", "到", "说", "要", "去", "你", "会", "着", "没有", "看", "好", "自己", "这"]
+        punctuation = ".,!?:;。，！？：；%$\n []()（）《》<>「」'''-_+=*&^#@~`"
+        stopwords = [
+            "的",
+            "了",
+            "是",
+            "在",
+            "我",
+            "有",
+            "和",
+            "就",
+            "不",
+            "人",
+            "都",
+            "一",
+            "一个",
+            "上",
+            "也",
+            "很",
+            "到",
+            "说",
+            "要",
+            "去",
+            "你",
+            "会",
+            "着",
+            "没有",
+            "看",
+            "好",
+            "自己",
+            "这",
+        ]
         remove_set = set(punctuation) | set(stopwords)
 
-        new_words = [
+        new_words: list[str] = [
             word
-            for word in cut_words
+            for word in cut_words_list
             if word not in remove_set and len(word.strip()) > 0
         ]
 

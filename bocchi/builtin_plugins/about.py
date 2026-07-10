@@ -30,18 +30,18 @@ QQ_INFO = """
 『后藤一里Bot』
 版本：{version}
 作者: Tabris
-简介：参照基于Nonebot2开发的绪山真寻Bot客制化，支持多平台的个性化Bot.将原Bot的人设改为作者钟爱的小孤独,集成了多个开源插件丰富了原Bot功能,也添加了作者的一些原创功能.后续会添加更多功能!
+简介：参照基于Nonebot2开发的后藤一里Bot客制化，支持多平台的个性化Bot.将原Bot的人设改为作者钟爱的小孤独,集成了多个开源插件丰富了原Bot功能,也添加了作者的一些原创功能.后续会添加更多功能!
 项目地址: https://github.com/Tabris-ZX/bocchi.git (波奇Bot)
-参照项目: https://github.com/zhenxun-org/zhenxun_bot (真寻Bot)
+参照项目: https://github.com/bocchi-org/bocchi_bot (波奇Bot)
 """.strip()
 
 INFO = """
 『后藤一里Bot』
 版本：{version}
 作者: Tabris
-简介：参照基于Nonebot2开发的绪山真寻Bot客制化，支持多平台的个性化Bot.将原Bot的人设改为作者钟爱的小孤独,集成了多个开源插件丰富了原Bot功能,也添加了作者的一些原创功能.后续会添加更多功能!
+简介：参照基于Nonebot2开发的后藤一里Bot客制化，支持多平台的个性化Bot.将原Bot的人设改为作者钟爱的小孤独,集成了多个开源插件丰富了原Bot功能,也添加了作者的一些原创功能.后续会添加更多功能!
 项目地址: https://github.com/Tabris-ZX/bocchi.git (波奇Bot)
-参照项目: https://github.com/zhenxun-org/zhenxun_bot (真寻Bot)
+参照项目: https://github.com/bocchi-org/bocchi_bot (波奇Bot)
 """.strip()
 
 

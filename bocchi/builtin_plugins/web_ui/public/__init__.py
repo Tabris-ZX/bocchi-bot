@@ -2,28 +2,31 @@ from fastapi import APIRouter, FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from bocchi.configs.path_config import DATA_PATH
 from bocchi.services.log import logger
-from bocchi.utils.manager.bocchi_repo_manager import bocchiRepoManager
+
+WEBUI_PATH = DATA_PATH / "web_ui" / "public"
 
 router = APIRouter()
 
 
 @router.get("/")
 async def index():
-    return FileResponse(bocchiRepoManager.config.WEBUI_PATH / "index.html")
+    return FileResponse(WEBUI_PATH / "index.html")
 
 
 @router.get("/favicon.ico")
 async def favicon():
-    return FileResponse(bocchiRepoManager.config.WEBUI_PATH / "favicon.ico")
+    return FileResponse(WEBUI_PATH / "favicon.ico")
 
 
 async def init_public(app: FastAPI):
     try:
-        if not bocchiRepoManager.check_webui_exists():
-            await bocchiRepoManager.webui_update(branch="test")
+        if not WEBUI_PATH.exists() or not any(WEBUI_PATH.iterdir()):
+            logger.warning("WebUI 资源不存在，请手动放置到 data/web_ui/public/", "WebUI")
+            return
         folders = [
-            x.name for x in bocchiRepoManager.config.WEBUI_PATH.iterdir() if x.is_dir()
+            x.name for x in WEBUI_PATH.iterdir() if x.is_dir()
         ]
         app.include_router(router)
         for pathname in folders:
@@ -31,7 +34,7 @@ async def init_public(app: FastAPI):
             app.mount(
                 f"/{pathname}",
                 StaticFiles(
-                    directory=bocchiRepoManager.config.WEBUI_PATH / pathname,
+                    directory=WEBUI_PATH / pathname,
                     check_dir=True,
                 ),
                 name=f"public_{pathname}",

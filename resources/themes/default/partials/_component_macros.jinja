@@ -1,0 +1,10 @@
+{% macro wrapper(data, base_class) %}
+{# 
+   一个通用的组件包装宏。
+   - data: 组件的数据模型，用于访问 extra_classes 和 inline_style_str。
+   - base_class: 组件自身的基础CSS类名，例如 'card-wrapper' 或 'alert'。
+#}
+<div class="{{ base_class }} {{ data.extra_classes | join(' ') if data.extra_classes }}" style="{{ data.inline_style_str }}">
+    {{ caller() }}
+</div>
+{% endmacro %}

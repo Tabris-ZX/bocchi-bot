@@ -5,7 +5,11 @@ from typing import Any, ClassVar
 from typing_extensions import Self
 
 from tortoise.backends.base.client import BaseDBAsyncClient
-from tortoise.exceptions import IntegrityError, MultipleObjectsReturned
+from tortoise.exceptions import (
+    IntegrityError,
+    MultipleObjectsReturned,
+    TransactionManagementError,
+)
 from tortoise.models import Model as TortoiseModel
 from tortoise.transactions import in_transaction
 
@@ -23,11 +27,15 @@ class Model(TortoiseModel):
     """
 
     sem_data: ClassVar[dict[str, dict[str, asyncio.Semaphore]]] = {}
-    _current_locks: ClassVar[dict[int, DbLockType]] = {}  # 跟踪当前协程持有的锁
+    _current_locks: ClassVar[dict[tuple[str, int], DbLockType]] = {}
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
-        if cls.__module__ not in db_model.models:
+
+        is_abstract = (
+            getattr(cls.Meta, "abstract", False) if hasattr(cls, "Meta") else False
+        )
+        if not is_abstract and cls.__module__ not in db_model.models:
             db_model.models.append(cls.__module__)
 
         if func := getattr(cls, "_run_script", None):
@@ -91,21 +99,21 @@ class Model(TortoiseModel):
     @classmethod
     def _require_lock(cls, lock_type: DbLockType) -> bool:
         """检查是否需要真正加锁"""
-        task_id = id(asyncio.current_task())
-        return cls._current_locks.get(task_id) != lock_type
+        lock_key = (cls.__name__, id(asyncio.current_task()))
+        return cls._current_locks.get(lock_key) != lock_type
 
     @classmethod
     @contextlib.asynccontextmanager
     async def _lock_context(cls, lock_type: DbLockType):
         """带重入检查的锁上下文"""
-        task_id = id(asyncio.current_task())
+        lock_key = (cls.__name__, id(asyncio.current_task()))
         need_lock = cls._require_lock(lock_type)
 
         if need_lock and (sem := cls.get_semaphore(lock_type)):
-            cls._current_locks[task_id] = lock_type
+            cls._current_locks[lock_key] = lock_type
             async with sem:
                 yield
-            cls._current_locks.pop(task_id, None)
+            cls._current_locks.pop(lock_key, None)
         else:
             yield
 
@@ -129,10 +137,24 @@ class Model(TortoiseModel):
         **kwargs: Any,
     ) -> tuple[Self, bool]:
         """获取或创建数据（无锁版本，依赖数据库约束）"""
-        result = await super().get_or_create(
-            defaults=defaults, using_db=using_db, **kwargs
-        )
-        if cache_type := cls.get_cache_type():
+        try:
+            result = await super().get_or_create(
+                defaults=defaults, using_db=using_db, **kwargs
+            )
+        except IntegrityError:
+            # 并发创建冲突时，回退为查询已存在记录
+            try:
+                if using_db is not None:
+                    obj = await cls.filter(**kwargs).using_db(using_db).get()
+                    result = (obj, False)
+                else:
+                    raise TransactionManagementError("fallback to new transaction")
+            except TransactionManagementError:
+                async with in_transaction() as connection:
+                    obj = await cls.filter(**kwargs).using_db(connection).get()
+                    result = (obj, False)
+
+        if result[1] and (cache_type := cls.get_cache_type()):
             await CacheRoot.invalidate_cache(cache_type, cls.get_cache_key(result[0]))
         return result
 
@@ -153,8 +175,8 @@ class Model(TortoiseModel):
                         await obj.save()
                         result = (obj, False)
                     else:
-                        # 创建时不重复加锁
-                        result = await cls.create(**kwargs, **(defaults or {})), True
+                        obj = await super().create(**kwargs, **(defaults or {}))
+                        result = (obj, True)
 
                 if cache_type := cls.get_cache_type():
                     await CacheRoot.invalidate_cache(
@@ -227,6 +249,7 @@ class Model(TortoiseModel):
                 return await with_db_timeout(
                     cls.get_or_none(*args, using_db=using_db, **kwargs),
                     operation=f"{cls.__name__}.get_or_none",
+                    source="DataBaseModel",
                 )
             except MultipleObjectsReturned:
                 # 如果出现多个记录的情况，进行特殊处理
@@ -239,6 +262,7 @@ class Model(TortoiseModel):
                 records = await with_db_timeout(
                     cls.filter(*args, **kwargs).all(),
                     operation=f"{cls.__name__}.filter.all",
+                    source="DataBaseModel",
                 )
 
                 if not records:
@@ -255,6 +279,7 @@ class Model(TortoiseModel):
                             await with_db_timeout(
                                 record.delete(),
                                 operation=f"{cls.__name__}.delete_duplicate",
+                                source="DataBaseModel",
                             )
                             logger.info(
                                 f"{cls.__name__} 删除重复记录:"
@@ -269,11 +294,13 @@ class Model(TortoiseModel):
                     return await with_db_timeout(
                         cls.filter(*args, **kwargs).order_by("-id").first(),
                         operation=f"{cls.__name__}.filter.order_by.first",
+                        source="DataBaseModel",
                     )
                 # 如果没有 id 字段，则返回第一个记录
                 return await with_db_timeout(
                     cls.filter(*args, **kwargs).first(),
                     operation=f"{cls.__name__}.filter.first",
+                    source="DataBaseModel",
                 )
         except asyncio.TimeoutError:
             logger.error(

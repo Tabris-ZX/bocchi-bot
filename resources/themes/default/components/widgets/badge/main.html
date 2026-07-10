@@ -1,0 +1,6 @@
+
+{% import "macros/ui.jinja" as ui %}
+{% from 'partials/_component_macros.jinja' import wrapper %}
+{% call wrapper(data, 'badge-wrapper') %}
+    {{ ui.badge(text=data.text, color=data.color_scheme, rounded=False) }}
+{% endcall %}

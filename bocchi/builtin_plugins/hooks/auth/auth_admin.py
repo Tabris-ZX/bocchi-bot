@@ -1,4 +1,3 @@
-import asyncio
 import time
 
 from nonebot_plugin_alconna import At
@@ -6,17 +5,26 @@ from nonebot_plugin_uninfo import Uninfo
 
 from bocchi.models.level_user import LevelUser
 from bocchi.models.plugin_info import PluginInfo
-from bocchi.services.data_access import DataAccess
-from bocchi.services.db_context import DB_TIMEOUT_SECONDS
 from bocchi.services.log import logger
-from bocchi.utils.utils import get_entity_ids
+from bocchi.utils.utils import EntityIDs, get_entity_ids
 
 from .config import LOGGER_COMMAND, WARNING_THRESHOLD
+from .context import PermissionContext
+from .data_provider import DEFAULT_PERMISSION_DATA_PROVIDER, LevelUserSnapshot
 from .exception import SkipPluginException
-from .utils import send_message
 
 
-async def auth_admin(plugin: PluginInfo, session: Uninfo):
+async def auth_admin(
+    plugin: PluginInfo,
+    session: Uninfo,
+    cached_levels: tuple[
+        LevelUser | LevelUserSnapshot | None, LevelUser | LevelUserSnapshot | None
+    ]
+    | None = None,
+    *,
+    context: PermissionContext | None = None,
+    entity: EntityIDs | None = None,
+):
     """管理员命令 个人权限
 
     参数:
@@ -29,64 +37,49 @@ async def auth_admin(plugin: PluginInfo, session: Uninfo):
         return
 
     try:
-        entity = get_entity_ids(session)
-        level_dao = DataAccess(LevelUser)
+        if context is not None:
+            entity = context.entity
+            if cached_levels is None:
+                cached_levels = context.admin_levels
+        if entity is None:
+            entity = get_entity_ids(session)
 
-        # 并行查询用户权限数据
-        global_user: LevelUser | None = None
-        group_users: LevelUser | None = None
+        global_user: LevelUser | LevelUserSnapshot | None = None
+        group_users: LevelUser | LevelUserSnapshot | None = None
 
-        # 查询全局权限
-        global_user_task = level_dao.safe_get_or_none(
-            user_id=session.user.id, group_id__isnull=True
-        )
-
-        # 如果在群组中，查询群组权限
-        group_users_task = None
-        if entity.group_id:
-            group_users_task = level_dao.safe_get_or_none(
-                user_id=session.user.id, group_id=entity.group_id
+        if cached_levels is not None:
+            global_user, group_users = cached_levels
+        else:
+            (
+                global_user,
+                group_users,
+            ) = await DEFAULT_PERMISSION_DATA_PROVIDER.get_admin_levels(
+                entity.user_id, entity.group_id
             )
-
-        # 等待查询完成，添加超时控制
-        try:
-            results = await asyncio.wait_for(
-                asyncio.gather(global_user_task, group_users_task or asyncio.sleep(0)),
-                timeout=DB_TIMEOUT_SECONDS,
-            )
-            global_user = results[0]
-            group_users = results[1] if group_users_task else None
-        except asyncio.TimeoutError:
-            logger.error(f"查询用户权限超时: user_id={session.user.id}", LOGGER_COMMAND)
-            # 超时时不阻塞，继续执行
-            return
 
         user_level = global_user.user_level if global_user else 0
         if entity.group_id and group_users:
             user_level = max(user_level, group_users.user_level)
 
             if user_level < plugin.admin_level:
-                await send_message(
-                    session,
-                    [
-                        At(flag="user", target=session.user.id),
+                raise SkipPluginException(
+                    f"{plugin.name}({plugin.module}) 管理员权限不足...",
+                    tip_message=[
+                        At(flag="user", target=entity.user_id),
                         f"你的权限不足喔，该功能需要的权限等级: {plugin.admin_level}",
                     ],
-                    entity.user_id,
-                )
-
-                raise SkipPluginException(
-                    f"{plugin.name}({plugin.module}) 管理员权限不足..."
+                    tip_check_tag=entity.user_id,
+                    tip_background=True,
                 )
         elif global_user:
             if global_user.user_level < plugin.admin_level:
-                await send_message(
-                    session,
-                    f"你的权限不足喔，该功能需要的权限等级: {plugin.admin_level}",
-                )
-
                 raise SkipPluginException(
-                    f"{plugin.name}({plugin.module}) 管理员权限不足..."
+                    f"{plugin.name}({plugin.module}) 管理员权限不足...",
+                    tip_message=(
+                        f"你的权限不足喔，该功能需要的权限等级: "
+                        f"{plugin.admin_level}"
+                    ),
+                    tip_background=True,
                 )
     finally:
         # 记录执行时间

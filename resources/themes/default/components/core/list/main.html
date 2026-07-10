@@ -1,0 +1,12 @@
+{% from 'partials/_component_macros.jinja' import wrapper %}
+{% call wrapper(data, 'list-wrapper') %}
+    {% if data.ordered %}
+    <ol class="list-container">
+    {% else %}
+    <ul class="list-container">
+    {% endif %}
+        {% for item in data.items %}
+            <li>{{ render(item.component) }}</li>
+        {% endfor %}
+    {% if data.ordered %}</ol>{% else %}</ul>{% endif %}
+{% endcall %}

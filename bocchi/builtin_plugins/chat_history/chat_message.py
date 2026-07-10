@@ -1,16 +1,21 @@
 from nonebot import on_message
 from nonebot.plugin import PluginMetadata
 from nonebot_plugin_alconna import UniMsg
-from nonebot_plugin_apscheduler import scheduler
 from nonebot_plugin_uninfo import Uninfo
 
 from bocchi.configs.config import Config
 from bocchi.configs.utils import PluginExtraData, RegisterConfig
 from bocchi.models.chat_history import ChatHistory
+from bocchi.services.db_context import with_db_timeout
 from bocchi.services.log import logger
+from bocchi.services.low_priority_writer import (
+    LowPriorityWriterConfig,
+    append_low_priority_record,
+    register_low_priority_writer,
+)
+from bocchi.services.message_load import is_overloaded
 from bocchi.utils.enum import PluginType
 from bocchi.utils.utils import get_entity_ids
-from bocchi.services.db_context.utils import with_db_timeout
 
 __plugin_meta__ = PluginMetadata(
     name="消息存储",
@@ -40,44 +45,53 @@ def rule(message: UniMsg) -> bool:
 
 chat_history = on_message(rule=rule, priority=1, block=False)
 
-TEMP_LIST = []
+_WRITER_NAME = "chat_history"
+_FLUSH_BATCH_SIZE = 200
+_FLUSH_MAX_PER_TICK = 1000
+_FLUSH_DB_TIMEOUT = 5.0
+
+
+async def _write_chat_history_batch(batch: list[ChatHistory], reason: str) -> None:
+    await with_db_timeout(
+        ChatHistory.bulk_create(batch, _FLUSH_BATCH_SIZE),
+        timeout=_FLUSH_DB_TIMEOUT,
+        operation=f"ChatHistory.bulk_create[{len(batch)}]",
+        source=f"chat_history:{reason}",
+    )
+
+
+register_low_priority_writer(
+    LowPriorityWriterConfig(
+        name=_WRITER_NAME,
+        write_batch=_write_chat_history_batch,
+        batch_size=_FLUSH_BATCH_SIZE,
+        trigger_size=_FLUSH_BATCH_SIZE,
+        max_retain=5000,
+        flush_interval_seconds=60.0,
+        max_items_per_cycle=_FLUSH_MAX_PER_TICK,
+        backoff_base_seconds=30.0,
+        backoff_max_seconds=600.0,
+        log_command="chat_history",
+    )
+)
 
 
 @chat_history.handle()
 async def _(message: UniMsg, session: Uninfo):
     entity = get_entity_ids(session)
-    TEMP_LIST.append(
-        ChatHistory(
-            user_id=entity.user_id,
-            group_id=entity.group_id,
-            text=str(message),
-            plain_text=message.extract_plain_text(),
-            bot_id=session.self_id,
-            platform=session.platform,
-        )
-    )
-
-
-@scheduler.scheduled_job(
-    "interval",
-    seconds=10,
-)
-async def _():
+    if is_overloaded():
+        return
     try:
-        message_list = TEMP_LIST.copy()
-        TEMP_LIST.clear()
-        if message_list:
-            # 分片 + 指定 batch_size，避免单批过大导致超时或长事务
-            batch_size = 500
-            chunk_size = 1000
-            total = len(message_list)
-            for i in range(0, total, chunk_size):
-                chunk = message_list[i : i + chunk_size]
-                await with_db_timeout(
-                    ChatHistory.bulk_create(chunk, batch_size=batch_size),
-                    timeout=10.0,
-                    operation=f"ChatHistory.bulk_create[{len(chunk)}]",
-                )
-            logger.debug(f"批量添加聊天记录 {total} 条", "定时任务")
+        await append_low_priority_record(
+            _WRITER_NAME,
+            ChatHistory(
+                user_id=entity.user_id,
+                group_id=entity.group_id,
+                text=str(message),
+                plain_text=message.extract_plain_text(),
+                bot_id=session.self_id,
+                platform=session.platform,
+            ),
+        )
     except Exception as e:
         logger.warning("存储聊天记录失败", "chat_history", e=e)

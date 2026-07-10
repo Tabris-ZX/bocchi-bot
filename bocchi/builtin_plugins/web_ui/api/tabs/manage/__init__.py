@@ -12,7 +12,7 @@ from bocchi.utils.platform import PlatformUtils
 
 from ....base_model import Result
 from ....config import AVA_URL, GROUP_AVA_URL
-from ....utils import authentication
+from ....utils import DB_BUSY_MESSAGE, authentication
 from .data_source import ApiDataSource
 from .model import (
     ClearRequest,
@@ -209,13 +209,14 @@ async def _(param: HandleRequest) -> Result:
         if not (req := await FgRequest.get_or_none(id=param.id)):
             return Result.warning_("未找到此Id请求...")
         if req.request_type == RequestType.GROUP:
-            if group := await GroupConsole.get_group(group_id=req.group_id):
+            if group := await GroupConsole.get_group_db(group_id=req.group_id):
                 group.group_flag = 1
                 await group.save(update_fields=["group_flag"])
             else:
-                await GroupConsole.update_or_create(
+                await GroupConsole.get_or_create_root_group(
                     group_id=req.group_id,
                     defaults={"group_flag": 1},
+                    update_defaults=True,
                 )
         try:
             await FgRequest.approve(bot, param.id)
@@ -240,8 +241,7 @@ async def _(param: HandleRequest) -> Result:
 async def _(param: LeaveGroup) -> Result:
     try:
         bot = nonebot.get_bot(param.bot_id)
-        platform = PlatformUtils.get_platform(bot)
-        if platform != "qq":
+        if PlatformUtils.get_platform_scope(bot) != "qq_client":
             return Result.warning_("该平台不支持退群操作...")
         group_list, _ = await PlatformUtils.get_group_list(bot)
         if param.group_id not in [g.group_id for g in group_list]:
@@ -265,8 +265,7 @@ async def _(param: LeaveGroup) -> Result:
 async def _(param: DeleteFriend) -> Result:
     try:
         bot = nonebot.get_bot(param.bot_id)
-        platform = PlatformUtils.get_platform(bot)
-        if platform != "qq":
+        if PlatformUtils.get_platform_scope(bot) != "qq_client":
             return Result.warning_("该平台不支持删除好友操作...")
         friend_list, _ = await PlatformUtils.get_friend_list(bot)
         if param.user_id not in [f.user_id for f in friend_list]:
@@ -295,6 +294,8 @@ async def _(bot_id: str, user_id: str) -> Result[UserDetail]:
             if result
             else Result.warning_("未找到该好友...")
         )
+    except TimeoutError:
+        return Result.fail(DB_BUSY_MESSAGE)
     except (ValueError, KeyError):
         return Result.warning_("指定Bot未连接...")
     except Exception as e:
@@ -312,6 +313,8 @@ async def _(bot_id: str, user_id: str) -> Result[UserDetail]:
 async def _(group_id: str) -> Result[GroupDetail]:
     try:
         return Result.ok(await ApiDataSource.get_group_detail(group_id), "拿到信息啦!")
+    except TimeoutError:
+        return Result.fail(DB_BUSY_MESSAGE)
     except Exception as e:
         logger.error(f"{router.prefix}/get_group_detail 调用错误", "WebUi", e=e)
         return Result.fail(f"发生了一点错误捏 {type(e)}: {e}")

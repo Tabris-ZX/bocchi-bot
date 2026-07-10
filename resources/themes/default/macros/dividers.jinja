@@ -1,0 +1,392 @@
+{# 
+    Dividers & Connectors 
+    用于连接上下内容块的分隔符
+#}
+
+{# 1. 心跳线 (Heartbeat/ECG) - 适合生命值、紧张氛围 #}
+{% macro div_heartbeat(color='currentColor', height=40, stroke=2) %}
+<div style="width: 100%; overflow: hidden; display: flex; align-items: center; justify-content: center; height: {{ height }}px; color: {{ color }};">
+    <svg viewBox="0 0 500 50" preserveAspectRatio="none" style="width: 100%; height: 100%;">
+        <path d="M0 25 H180 L190 5 L200 45 L210 15 L220 35 L230 25 H500"
+              fill="none" stroke="currentColor" stroke-width="{{ stroke }}" stroke-linejoin="round" stroke-linecap="round"/>
+    </svg>
+</div>
+{% endmacro %}
+
+{# 2. 科技断点线 (Tech Line) - 适合科幻/数据 #}
+{% macro div_tech(color='currentColor', height=20) %}
+<div style="width: 100%; display: flex; align-items: center; gap: 4px; opacity: 0.8; height: {{ height }}px; color: {{ color }};">
+    <div style="height: 1px; flex-grow: 1; background-color: currentColor; opacity: 0.3;"></div>
+    <div style="width: 8px; height: 8px; background-color: currentColor; transform: rotate(45deg);"></div>
+    <div style="width: 40px; height: 4px; background-color: currentColor;"></div>
+    <div style="width: 8px; height: 8px; background-color: currentColor; transform: rotate(45deg);"></div>
+    <div style="height: 1px; flex-grow: 1; background-color: currentColor; opacity: 0.3;"></div>
+</div>
+{% endmacro %}
+
+{# 3. 魔法星链 (Magic Stars) - 适合二次元/梦幻 #}
+{% macro div_stars(color='#ffd700', height=30) %}
+<div style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 16px; height: {{ height }}px; color: {{ color }};">
+    <div style="height: 1px; width: 25%; background: linear-gradient(to right, transparent, currentColor); opacity: 0.5;"></div>
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" style="display: block;"><path d="M12 2l3 7h7l-5 5 2 7-7-5-7 5 2-7-5-5h7z"/></svg>
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style="opacity: 0.7; display: block;"><path d="M12 2l3 7h7l-5 5 2 7-7-5-7 5 2-7-5-5h7z"/></svg>
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" style="display: block;"><path d="M12 2l3 7h7l-5 5 2 7-7-5-7 5 2-7-5-5h7z"/></svg>
+    <div style="height: 1px; width: 25%; background: linear-gradient(to left, transparent, currentColor); opacity: 0.5;"></div>
+</div>
+{% endmacro %}
+
+{# 4. 猫爪足迹 (Cat Paws) - 适合萌宠 #}
+{% macro div_paws(color='#ffb6c1', height=30) %}
+<div style="width: 100%; overflow: hidden; height: {{ height }}px; color: {{ color }};">
+    <svg width="100%" height="100%">
+        <pattern id="pat-paws-line" x="0" y="0" width="60" height="40" patternUnits="userSpaceOnUse">
+            <circle cx="15" cy="20" r="4" fill="currentColor" opacity="0.6"/>
+            <circle cx="10" cy="14" r="1.5" fill="currentColor"/> <circle cx="14" cy="12" r="1.5" fill="currentColor"/> <circle cx="19" cy="14" r="1.5" fill="currentColor"/>
+            <circle cx="45" cy="28" r="4" fill="currentColor" opacity="0.6"/>
+            <circle cx="40" cy="22" r="1.5" fill="currentColor"/> <circle cx="44" cy="20" r="1.5" fill="currentColor"/> <circle cx="49" cy="22" r="1.5" fill="currentColor"/>
+        </pattern>
+        <rect x="0" y="0" width="100%" height="100%" fill="url(#pat-paws-line)"></rect>
+    </svg>
+</div>
+{% endmacro %}
+
+{# 5. 故障分割 (Glitch) - 适合警告/错误 #}
+{% macro div_glitch(color='#ff0055', height=10) %}
+<div class="w-full" style="height: {{ height }}px; background: repeating-linear-gradient(90deg, {{ color }} 0, {{ color }} 2px, transparent 2px, transparent 4px, {{ color }} 8px); opacity: 0.7; clip-path: polygon(0 0, 100% 0, 98% 100%, 2% 100%);"></div>
+{% endmacro %}
+
+{# 6. 云朵波浪 (Clouds) - 适合治愈/软萌 #}
+{% macro div_cloud(color='#a29bfe', height=40) %}
+<div class="w-full overflow-hidden" style="height: {{ height }}px; color: {{ color }};">
+    <svg viewBox="0 0 100 20" preserveAspectRatio="none" style="width: 100%; height: 100%;">
+        <path d="M0 20 Q 5 5 10 20 T 20 20 T 30 20 T 40 20 T 50 20 T 60 20 T 70 20 T 80 20 T 90 20 T 100 20 V 20 H 0 Z" 
+              fill="currentColor" opacity="0.5"/>
+        <path d="M0 20 Q 8 0 16 20 T 32 20 T 48 20 T 64 20 T 80 20 T 96 20 V 20 H 0 Z" 
+              fill="currentColor"/>
+    </svg>
+</div>
+{% endmacro %}
+
+{# 7. DNA 双螺旋 (DNA) - 适合生物/科技 #}
+{% macro div_dna(color='#2ecc71', height=30) %}
+<div class="w-full flex items-center justify-center overflow-hidden" style="height: {{ height }}px; color: {{ color }}; opacity: 0.8;">
+    <svg width="100%" height="100%">
+        <path d="M0 15 Q 25 0 50 15 T 100 15 T 150 15 T 200 15" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="1000" stroke-dashoffset="0" style="transform: scaleX(5);"/>
+        <path d="M0 15 Q 25 30 50 15 T 100 15 T 150 15 T 200 15" fill="none" stroke="currentColor" stroke-width="2" opacity="0.5" style="transform: scaleX(5);"/>
+        <path d="M25 5 L25 25 M75 5 L75 25 M125 5 L125 25" stroke="currentColor" stroke-width="1" opacity="0.3" />
+    </svg>
+</div>
+{% endmacro %}
+
+{# 8. 箭头流 (Flow Arrows) - 适合步骤/指引 #}
+{% macro div_arrows_flow(color='#3498db', height=20) %}
+<div class="w-full flex items-center justify-center overflow-hidden" style="height: {{ height }}px; color: {{ color }};">
+    <svg width="100%" height="100%" preserveAspectRatio="none">
+        <pattern id="pat-arrows" x="0" y="0" width="40" height="20" patternUnits="userSpaceOnUse">
+            <path d="M0 0 L15 10 L0 20" fill="none" stroke="currentColor" stroke-width="3" opacity="0.2"/>
+            <path d="M10 0 L25 10 L10 20" fill="none" stroke="currentColor" stroke-width="3" opacity="0.5"/>
+            <path d="M20 0 L35 10 L20 20" fill="none" stroke="currentColor" stroke-width="3" opacity="1"/>
+        </pattern>
+        <rect width="100%" height="100%" fill="url(#pat-arrows)"/>
+    </svg>
+</div>
+{% endmacro %}
+
+{# 9. 锯齿拉链 (Zipper) #}
+{% macro div_zipper(color='currentColor', height=20) %}
+<div class="w-full overflow-hidden" style="height: {{ height }}px; color: {{ color }};">
+    <svg width="100%" height="100%" preserveAspectRatio="none">
+        <pattern id="pat-zipper" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+            <path d="M0 10 L10 0 L20 10 L10 20 Z" fill="{{ color }}" />
+        </pattern>
+        <rect width="100%" height="100%" fill="url(#pat-zipper)"/>
+    </svg>
+</div>
+{% endmacro %}
+
+{# 10. 虚线剪刀 (Cut Line) #}
+{% macro div_cut_line(color='#666', height=30) %}
+<div class="w-full flex items-center gap-2" style="height: {{ height }}px; color: {{ color }};">
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" style="transform: rotate(-90deg);">
+        <path d="M6 6c0-2.2 1.8-4 4-4s4 1.8 4 4c0 1.7-1.1 3.1-2.6 3.7l3 4.7c.3-.1.7-.2 1-.2 1.7 0 3.1 1.1 3.7 2.6l2.5-1.5.9 1.7-2.4 1.5c.1.4.2.9.2 1.4 0 2.2-1.8 4-4 4s-4-1.8-4-4c0-1.7 1.1-3.1 2.6-3.7l-3-4.7c-.3.1-.7.2-1 .2-1.7 0-3.1-1.1-3.7-2.6L4.7 15l-.9-1.7 2.4-1.5C6.1 11.4 6 10.9 6 10.4V6zm4-2C8.9 4 8 4.9 8 6s.9 2 2 2 2-.9 2-2-.9-2-2-2zm6 12c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+    </svg>
+    <div class="flex-grow border-b-2 border-dashed border-current"></div>
+</div>
+{% endmacro %}
+
+{# 11. 斜线进度 (Progress Stripes) #}
+{% macro div_stripes(color1='#eee', color2='#ccc', height=10) %}
+<div class="w-full" style="height: {{ height }}px; background: repeating-linear-gradient(45deg, {{ color1 }}, {{ color1 }} 10px, {{ color2 }} 10px, {{ color2 }} 20px);"></div>
+{% endmacro %}
+
+{# 12. 有机波点 (Organic Dots) #}
+{% macro div_organic_dots(color='currentColor', height=20) %}
+<div class="w-full flex justify-center gap-3" style="height: {{ height }}px; color: {{ color }};">
+    <div class="w-1 h-1 rounded-full bg-current opacity-40"></div>
+    <div class="w-2 h-2 rounded-full bg-current opacity-60"></div>
+    <div class="w-3 h-3 rounded-full bg-current opacity-100"></div>
+    <div class="w-2 h-2 rounded-full bg-current opacity-60"></div>
+    <div class="w-1 h-1 rounded-full bg-current opacity-40"></div>
+</div>
+{% endmacro %}
+
+{# 13. 菱形链 (Diamond Chain) #}
+{% macro div_diamonds(color='currentColor', height=16) %}
+<div class="w-full flex items-center justify-center overflow-hidden" style="height: {{ height }}px; color: {{ color }};">
+    <svg width="100%" height="100%" preserveAspectRatio="none">
+        <pattern id="pat-diamonds" x="0" y="0" width="30" height="16" patternUnits="userSpaceOnUse">
+            <path d="M0 8 L15 0 L30 8 L15 16 Z" fill="none" stroke="currentColor" stroke-width="1"/>
+        </pattern>
+        <rect width="100%" height="100%" fill="url(#pat-diamonds)"/>
+    </svg>
+</div>
+{% endmacro %}
+
+{# 14. 渐变淡出 (Fade Out) #}
+{% macro div_fade(color='currentColor', height=2) %}
+<div class="w-full" style="height: {{ height }}px; background: linear-gradient(to right, transparent, {{ color }}, transparent); opacity: 0.5;"></div>
+{% endmacro %}
+
+{# 15. 像素方块 (Pixel Blocks) #}
+{% macro div_pixels(color='currentColor', height=10) %}
+<div class="w-full" style="height: {{ height }}px; color: {{ color }}; background-image: linear-gradient(90deg, currentColor 50%, transparent 50%); background-size: 20px 100%;"></div>
+{% endmacro %}
+
+{# 16. 藤蔓 (Vines) #}
+{% macro div_vines(color='#4caf50', height=20) %}
+<div class="w-full overflow-hidden" style="height: {{ height }}px; color: {{ color }};">
+    <svg width="100%" height="100%" preserveAspectRatio="none">
+        <path d="M0 10 Q 25 0 50 10 T 100 10 T 150 10" fill="none" stroke="currentColor" stroke-width="2" style="transform: scaleX(10);"/>
+        <circle cx="25" cy="10" r="3" fill="currentColor"/>
+        <circle cx="75" cy="10" r="3" fill="currentColor"/>
+        <circle cx="125" cy="10" r="3" fill="currentColor"/>
+    </svg>
+</div>
+{% endmacro %}
+
+{# 17. 阴影分割 (Shadow Separator) #}
+{% macro div_shadow(height=20) %}
+<div class="w-full" style="height: {{ height }}px; background: radial-gradient(ellipse at center, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0) 70%);"></div>
+{% endmacro %}
+
+{# 18. 双线中间字 (Text Middle) #}
+{% macro div_text_middle(text, color='#999') %}
+<div class="flex items-center w-full gap-4 my-4" style="color: {{ color }};">
+    <div class="h-px bg-current flex-grow opacity-30"></div>
+    <span class="text-xs font-bold uppercase tracking-wider">{{ text }}</span>
+    <div class="h-px bg-current flex-grow opacity-30"></div>
+</div>
+{% endmacro %}
+
+{# 21. 铅笔涂鸦 (Scribble) #}
+{% macro div_scribble(color='currentColor', height=20) %}
+<div class="w-full overflow-hidden" style="height: {{ height }}px; color: {{ color }};">
+    <svg width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 100 20">
+        <path d="M0 10 Q 5 0 10 10 T 20 10 T 30 10 T 40 10 T 50 10 T 60 10 T 70 10 T 80 10 T 90 10 T 100 10" 
+              fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" 
+              vector-effect="non-scaling-stroke"/>
+    </svg>
+</div>
+{% endmacro %}
+
+{# 22. 圆点链 (Chain Dots) #}
+{% macro div_chain_dots(color='currentColor', height=20) %}
+<div class="w-full flex items-center justify-center gap-1" style="height: {{ height }}px; color: {{ color }};">
+    <div class="flex-grow h-px bg-current opacity-30"></div>
+    <div class="w-2 h-2 rounded-full bg-current"></div>
+    <div class="w-1 h-1 rounded-full bg-current opacity-60"></div>
+    <div class="w-2 h-2 rounded-full bg-current"></div>
+    <div class="w-1 h-1 rounded-full bg-current opacity-60"></div>
+    <div class="w-2 h-2 rounded-full bg-current"></div>
+    <div class="flex-grow h-px bg-current opacity-30"></div>
+</div>
+{% endmacro %}
+
+{# 23. 剪刀虚线 (Scissors) #}
+{% macro div_scissors(color='#666', height=30) %}
+<div class="w-full flex items-center gap-2" style="height: {{ height }}px; color: {{ color }};">
+    <div class="flex-grow border-b-2 border-dashed border-current"></div>
+    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" style="transform: rotate(180deg);">
+        <path d="M17.5 14c-.8 0-1.5.4-2 1l-2.5-4 2.5-4c.5.6 1.2 1 2 1 1.7 0 3-1.3 3-3s-1.3-3-3-3-3 1.3-3 3c0 .5.1 1 .4 1.4l-2.4 3.9-2.4-3.9c.3-.4.4-.9.4-1.4 0-1.7-1.3-3-3-3s-3 1.3-3 3 1.3 3 3 3c.8 0 1.5-.4 2-1l2.5 4-2.5 4c-.5-.6-1.2-1-2-1-1.7 0-3 1.3-3 3s1.3 3 3 3 3-1.3 3-3c0-.5-.1-1-.4-1.4l2.4-3.9 2.4 3.9c-.3.4-.4.9-.4 1.4 0 1.7 1.3 3 3 3s3-1.3 3-3-1.3-3-3-3z"/>
+    </svg>
+</div>
+{% endmacro %}
+
+{# 24. 箭头链 (Arrow Chain) #}
+{% macro div_arrows(color='currentColor', height=20) %}
+<div class="w-full overflow-hidden" style="height: {{ height }}px; color: {{ color }}; opacity: 0.5;">
+    <svg width="100%" height="100%" preserveAspectRatio="none">
+        <pattern id="pat-arrows-chain" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+            <path d="M0 0 L10 10 L0 20" fill="none" stroke="currentColor" stroke-width="2"/>
+        </pattern>
+        <rect width="100%" height="100%" fill="url(#pat-arrows-chain)"/>
+    </svg>
+</div>
+{% endmacro %}
+
+{# 25. 菱形分割 (Diamonds) #}
+{% macro div_diamonds_line(color='currentColor', height=10) %}
+<div class="w-full flex items-center justify-center gap-4" style="height: {{ height }}px; color: {{ color }};">
+    <div class="w-2 h-2 transform rotate-45 bg-current"></div>
+    <div class="flex-grow h-px bg-current opacity-20"></div>
+    <div class="w-3 h-3 transform rotate-45 border-2 border-current"></div>
+    <div class="flex-grow h-px bg-current opacity-20"></div>
+    <div class="w-2 h-2 transform rotate-45 bg-current"></div>
+</div>
+{% endmacro %}
+
+{# 26. 锯齿波 (Sawtooth) #}
+{% macro div_sawtooth(color='currentColor', height=10) %}
+<div class="w-full overflow-hidden" style="height: {{ height }}px; color: {{ color }};">
+    <svg width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 100 10">
+        <path d="M0 10 L5 0 L10 10 L15 0 L20 10 L25 0 L30 10 L35 0 L40 10 L45 0 L50 10 L55 0 L60 10 L65 0 L70 10 L75 0 L80 10 L85 0 L90 10 L95 0 L100 10" 
+              fill="none" stroke="currentColor" stroke-width="1" vector-effect="non-scaling-stroke"/>
+    </svg>
+</div>
+{% endmacro %}
+
+{# 27. 闪电 (Lightning) #}
+{% macro div_lightning(color='#f1c40f', height=20) %}
+<div class="w-full flex items-center justify-center" style="height: {{ height }}px; color: {{ color }};">
+    <div class="h-px flex-grow bg-current opacity-20"></div>
+    <svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor" class="mx-2">
+        <path d="M7 2v11h3v9l7-12h-4l4-8z"/>
+    </svg>
+    <div class="h-px flex-grow bg-current opacity-20"></div>
+</div>
+{% endmacro %}
+
+{# 28. 星星分隔 (Stars) #}
+{% macro div_star_line(color='currentColor', height=20) %}
+<div class="w-full flex justify-center gap-6 text-xl leading-none" style="height: {{ height }}px; color: {{ color }};">
+    <span>✦</span><span>✧</span><span>✦</span>
+</div>
+{% endmacro %}
+
+{# 29. 阴影渐变 (Shadow Fade) #}
+{% macro div_shadow_fade(height=10) %}
+<div class="w-full" style="height: {{ height }}px; background: radial-gradient(50% 100% at 50% 0%, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0) 100%);"></div>
+{% endmacro %}
+
+{# 30. 交叉线 (Crosses) #}
+{% macro div_crosses(color='currentColor', height=20) %}
+<div class="w-full overflow-hidden" style="height: {{ height }}px; color: {{ color }}; opacity: 0.3;">
+    <svg width="100%" height="100%">
+        <pattern id="pat-div-cross" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+            <path d="M5 5 L15 15 M15 5 L5 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </pattern>
+        <rect width="100%" height="100%" fill="url(#pat-div-cross)"/>
+    </svg>
+</div>
+{% endmacro %}
+
+{# 31. 小花链 (Flowers) #}
+{% macro div_flowers(color='#ff9ff3', height=24) %}
+<div style="width: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; height: {{ height }}px; color: {{ color }};">
+    <svg width="100%" height="100%" preserveAspectRatio="none">
+        <pattern id="pat-div-flower" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse">
+            <path d="M12 2 C14 2 15 4 15 6 C17 6 19 7 19 9 C19 11 17 13 15 13 C15 15 14 17 12 17 C10 17 9 15 9 13 C7 13 5 11 5 9 C5 7 7 6 9 6 C9 4 10 2 12 2 Z" fill="currentColor" opacity="0.8"/>
+            <circle cx="12" cy="9.5" r="2" fill="#fff" />
+        </pattern>
+        <rect width="100%" height="100%" fill="url(#pat-div-flower)"/>
+    </svg>
+</div>
+{% endmacro %}
+
+{# 32. 蝴蝶结 (Bow Ties) #}
+{% macro div_bows(color='#54a0ff', height=20) %}
+<div style="width: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; height: {{ height }}px; color: {{ color }};">
+    <svg width="100%" height="100%" preserveAspectRatio="none">
+        <pattern id="pat-div-bow" x="0" y="0" width="30" height="20" patternUnits="userSpaceOnUse">
+            <path d="M5 5 L15 15 L15 5 L5 15 Z" fill="currentColor" opacity="0.6"/>
+            <circle cx="10" cy="10" r="2" fill="currentColor" />
+        </pattern>
+        <rect width="100%" height="100%" fill="url(#pat-div-bow)"/>
+    </svg>
+</div>
+{% endmacro %}
+
+{# 33. 星星闪烁 (Twinkle) #}
+{% macro div_twinkle(color='#feca57', height=20) %}
+<div style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 32px; height: {{ height }}px; color: {{ color }};">
+    <span style="font-size: 20px;">✨</span>
+    <span style="font-size: 14px; opacity: 0.7;">✨</span>
+    <span style="font-size: 20px;">✨</span>
+    <span style="font-size: 14px; opacity: 0.7;">✨</span>
+    <span style="font-size: 20px;">✨</span>
+</div>
+{% endmacro %}
+
+{# 34. 铅笔波浪 (Hand-drawn Wave) #}
+{% macro div_pencil_wave(color='#576574', height=15) %}
+<div style="width: 100%; overflow: hidden; height: {{ height }}px; color: {{ color }};">
+    <svg width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 100 15">
+        <path d="M0 7 Q 2.5 0, 5 7 T 10 7 T 15 7 T 20 7 T 25 7 T 30 7 T 35 7 T 40 7 T 45 7 T 50 7 T 55 7 T 60 7 T 65 7 T 70 7 T 75 7 T 80 7 T 85 7 T 90 7 T 95 7 T 100 7" 
+              fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+</div>
+{% endmacro %}
+
+{# 35. 爱心连线 (Heart String) #}
+{% macro div_heart_string(color='#ff6b6b', height=20) %}
+<div style="width: 100%; display: flex; align-items: center; justify-content: center; height: {{ height }}px; color: {{ color }};">
+    <div style="height: 1px; flex-grow: 1; background-color: currentColor; opacity: 0.4;"></div>
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="margin: 0 4px; display: block;"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="margin: 0 4px; display: block;"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="margin: 0 4px; display: block;"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+    <div style="height: 1px; flex-grow: 1; background-color: currentColor; opacity: 0.4;"></div>
+</div>
+{% endmacro %}
+
+{# 36. 虚线点 (Dotted Line Large) #}
+{% macro div_dots_large(color='#c8d6e5', height=10) %}
+<div style="width: 100%; height: {{ height }}px; background-image: radial-gradient(circle, {{ color }} 3px, transparent 3.5px); background-size: 20px 20px; background-position: center;"></div>
+{% endmacro %}
+
+{# 37. 糖果 (Candies) #}
+{% macro div_candies(color='#1dd1a1', height=20) %}
+<div style="width: 100%; overflow: hidden; height: {{ height }}px; color: {{ color }};">
+    <svg width="100%" height="100%" preserveAspectRatio="none">
+        <pattern id="pat-div-candy" x="0" y="0" width="30" height="20" patternUnits="userSpaceOnUse">
+            <circle cx="15" cy="10" r="6" fill="none" stroke="currentColor" stroke-width="2" />
+            <path d="M15 4 L15 16 M9 10 L21 10" stroke="currentColor" stroke-width="2" />
+        </pattern>
+        <rect width="100%" height="100%" fill="url(#pat-div-candy)"/>
+    </svg>
+</div>
+{% endmacro %}
+
+{# 38. 嫩芽 (Sprout Line) #}
+{% macro div_sprout(color='#badc58', height=20) %}
+<div style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 4px; height: {{ height }}px; color: {{ color }};">
+    {% for i in range(5) %}
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" style="margin: 0 4px; display: block;"><path d="M2 22h20v-2H2v2zm16.5-9c-2.5 0-4.7 1.1-6.1 2.8-.9-2.3-3.2-4-5.9-4-3.1 0-5.7 2.2-6.4 5.2H2L2 2h2v11c0 2.2 1.8 4 4 4 2.2 0 4-1.8 4-4h2c0 2.7 1.8 5 4.4 5.8.4-3.1 3.1-5.5 6.1-5.8V13z"/></svg>
+    {% endfor %}
+</div>
+{% endmacro %}
+
+{# 39. 云朵分割 (Cloud Line) #}
+{% macro div_cloud_line(color='#74b9ff', height=20) %}
+<div style="width: 100%; overflow: hidden; height: {{ height }}px; color: {{ color }};">
+    <svg width="100%" height="100%" preserveAspectRatio="none">
+        <pattern id="pat-div-cloud" x="0" y="0" width="40" height="20" patternUnits="userSpaceOnUse">
+             <path d="M10 15 Q 15 5 20 15 T 30 15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </pattern>
+        <rect width="100%" height="100%" fill="url(#pat-div-cloud)"/>
+    </svg>
+</div>
+{% endmacro %}
+
+{# 40. 音乐律动 (Audio Wave) #}
+{% macro div_audio_wave(color='#a29bfe', height=20) %}
+<div style="width: 100%; display: flex; align-items: flex-end; justify-content: center; gap: 4px; height: {{ height }}px; color: {{ color }};">
+    <div style="width: 4px; height: 8px; background-color: currentColor; border-radius: 9999px;"></div>
+    <div style="width: 4px; height: 16px; background-color: currentColor; border-radius: 9999px;"></div>
+    <div style="width: 4px; height: 12px; background-color: currentColor; border-radius: 9999px;"></div>
+    <div style="width: 4px; height: 20px; background-color: currentColor; border-radius: 9999px;"></div>
+    <div style="width: 4px; height: 8px; background-color: currentColor; border-radius: 9999px;"></div>
+    <div style="width: 4px; height: 16px; background-color: currentColor; border-radius: 9999px;"></div>
+    <div style="width: 4px; height: 12px; background-color: currentColor; border-radius: 9999px;"></div>
+    <div style="width: 4px; height: 8px; background-color: currentColor; border-radius: 9999px;"></div>
+</div>
+{% endmacro %}

@@ -1,0 +1,21 @@
+.avatar-wrapper {
+    display: inline-block;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+.avatar-wrapper.circle { border-radius: 50%; }
+.avatar-wrapper.square { border-radius: 8px; }
+
+.avatar-group {
+    display: flex;
+    align-items: center;
+}
+.avatar-group .avatar-wrapper {
+    border: 2px solid var(--color-background-main, #fff);
+}
+.avatar-group-plus {
+    width: 50px; height: 50px; border-radius: 50%;
+    background-color: #f0f2f5; color: #606266;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: bold; font-size: 14px;
+    border: 2px solid var(--color-background-main, #fff);
+}

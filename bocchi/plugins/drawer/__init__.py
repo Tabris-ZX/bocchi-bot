@@ -44,7 +44,7 @@ __plugin_meta__ = PluginMetadata(
         drawer -t 至上主义 [图片]
     """.strip(),
     extra=PluginExtraData(
-        author="Tabris_ZX",
+        author="Tabris-ZX",
         version="1.0.3",
         configs=[
             RegisterConfig(

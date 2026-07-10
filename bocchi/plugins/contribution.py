@@ -8,20 +8,20 @@ from bocchi.services.log import logger
 from bocchi.utils.message import MessageUtils
 
 __plugin_meta__ = PluginMetadata(
-    name="请喝杯奶茶吧",
-    description="想请作者喝杯奶茶吗,满足你!",
+    name="请我喝杯咖啡吧",
+    description="想请作者喝杯咖啡吗,满足你!",
     usage="""
-    请zx喝奶茶/为爱发电/打赏/vivo50/凉乞钞/请波奇喝奶茶
+    为爱发电/打赏/vivo50/凉乞钞/喝咖啡
     """.strip(),
     extra=PluginExtraData(
-        author="Tabris_ZX",
+        author="Tabris-ZX",
         version="0.1",
     ).to_dict(),
 )
 
 _contribution_matcher = on_alconna(
     Alconna("为爱发电"),
-    aliases={"请zx喝奶茶","打赏","vivo50","凉乞钞","请波奇喝奶茶"},
+    aliases={"打赏","vivo50","凉乞钞","喝咖啡"},
     priority=5,
     block=True,
 )

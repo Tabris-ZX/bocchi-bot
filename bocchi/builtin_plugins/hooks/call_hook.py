@@ -1,11 +1,10 @@
+from collections.abc import Mapping
 from typing import Any
 
 from nonebot.adapters import Bot, Message
 
-from bocchi.configs.config import Config
-from bocchi.models.bot_message_store import BotMessageStore
 from bocchi.services.log import logger
-from bocchi.utils.enum import BotSentType
+from bocchi.utils.log_sanitizer import sanitize_for_logging
 from bocchi.utils.manager.message_manager import MessageManager
 from bocchi.utils.platform import PlatformUtils
 
@@ -44,15 +43,16 @@ def replace_message(message: Message) -> str:
 async def handle_api_result(
     bot: Bot, exception: Exception | None, api: str, data: dict[str, Any], result: Any
 ):
-    if exception or api != "send_msg":
+    if (
+        exception
+        or api != "send_msg"
+        or PlatformUtils.get_platform_scope(bot) != "qq_client"
+    ):
         return
     user_id = data.get("user_id")
-    group_id = data.get("group_id")
-    message_id = result.get("message_id")
+    message_id = result.get("message_id") if isinstance(result, Mapping) else None
     message: Message = data.get("message", "")
-    message_type = data.get("message_type")
     try:
-        # 记录消息id
         if user_id and message_id:
             MessageManager.add(str(user_id), str(message_id))
             logger.debug(
@@ -62,26 +62,5 @@ async def handle_api_result(
         logger.warning(
             f"收集消息id发生错误...data: {data}, result: {result}", LOG_COMMAND, e=e
         )
-    if not Config.get_config("hook", "RECORD_BOT_SENT_MESSAGES"):
-        return
-    try:
-        await BotMessageStore.create(
-            bot_id=bot.self_id,
-            user_id=user_id,
-            group_id=group_id,
-            sent_type=BotSentType.GROUP
-            if message_type == "group"
-            else BotSentType.PRIVATE,
-            text=replace_message(message),
-            plain_text=message.extract_plain_text()
-            if isinstance(message, Message)
-            else replace_message(message),
-            platform=PlatformUtils.get_platform(bot),
-        )
-        logger.debug(f"消息发送记录，message: {message}")
-    except Exception as e:
-        logger.warning(
-            f"消息发送记录发生错误...data: {data}, result: {result}",
-            LOG_COMMAND,
-            e=e,
-        )
+    sanitized_message = sanitize_for_logging(message, context="nonebot_message")
+    logger.debug(f"消息发送记录，message: {sanitized_message}")
