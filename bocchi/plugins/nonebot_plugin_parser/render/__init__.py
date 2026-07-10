@@ -40,6 +40,8 @@ MAX_FORWARD_TEXT_LEN = 30000
 """单个 forward 文本总长上限"""
 MAX_FORWARD_NODES = 90
 """单个 forward 节点数上限"""
+RENDER_CACHE_VERSION = 3
+"""渲染模板更新时递增，用于使旧的渲染图片缓存失效。"""
 
 IS_DEBUG = gconfig.log_level in ["DEBUG", "TRACE", 10, 5]
 
@@ -153,13 +155,20 @@ class Renderer:
         return msg
 
     async def send_content(
-        self, result: ParseResult
+        self,
+        result: ParseResult,
+        leading_segs: tuple[ForwardNodeInner, ...] = (),
+        *,
+        force_forward: bool = False,
     ) -> AsyncGenerator[UniMessage[Any], None]:
         """发送媒体内容消息。
 
         将解析结果中的媒体内容拆分为：
-        - 需要立即发送的音视频（逐条 yield）
         - 可合并转发的图文 / 图片（统一收集后一次发送）
+        - 合并转发发送后才下载并发送的音视频（逐条 yield）
+
+        :param leading_segs: 放在合并转发开头的节点，例如渲染后的帖子卡片。
+        :param force_forward: 即使配置关闭合并转发，也将节点构造成合并转发。
         """
         failed_count = 0
         repost_medias = result.repost.content if result.repost else []
@@ -168,28 +177,9 @@ class Renderer:
             for cont in chain(result.content, repost_medias)
             if isinstance(cont, MediaContent) and cont.need_send
         ]
-        for cont in media_contents:
-            # 先处理需要立即发送的音视频
-            try:
-                async for msg in self.__handle_immediate_media(cont):
-                    yield msg
-            except SizeLimitException:
-                yield UniMessage(
-                    f"媒体太大啦，还是去{result.platform.display_name}看看吧~"
-                )
-                continue
-            except DurationLimitException:
-                yield UniMessage(
-                    f"媒体太长啦，还是去{result.platform.display_name}看看吧~"
-                )
-                continue
-            except DownloadException as e:
-                failed_count += 1
-                logger.exception(f"{cont.__class__.__name__} 下载失败: {e!r}")
-                continue
-
-        # 2 构建图文 / 图片的转发列表（含主帖 + 转发，按顺序）
-        ordered_segs = await self.__build_forward_segs(result)
+        # 先构建并发送图文 / 图片的转发列表（含主帖 + 转发，按顺序）。
+        # 视频文件仅在下方处理，从而不会阻塞合并转发的发送。
+        ordered_segs = [*leading_segs, *await self.__build_forward_segs(result)]
         if ordered_segs:
             # 一次遍历：统计+长文本拆分
             processed_segs: list[ForwardNodeInner] = []
@@ -217,7 +207,8 @@ class Renderer:
             # 2) 纯文字部分超过阈值
             # 3) 节点数较多
             need_forward = (
-                pconfig.need_forward_contents
+                force_forward
+                or pconfig.need_forward_contents
                 or total_plain_len > SPLIT_THRESHOLD
                 or node_count > 4
             )
@@ -261,6 +252,22 @@ class Renderer:
                 last_msg = flush_chunk()
                 if last_msg is not None:
                     yield last_msg
+
+        for cont in media_contents:
+            try:
+                async for msg in self.__handle_immediate_media(cont):
+                    yield msg
+            except SizeLimitException:
+                yield UniMessage(
+                    f"媒体太大啦，还是去{result.platform.display_name}看看吧~"
+                )
+            except DurationLimitException:
+                yield UniMessage(
+                    f"媒体太长啦，还是去{result.platform.display_name}看看吧~"
+                )
+            except DownloadException as e:
+                failed_count += 1
+                logger.exception(f"{cont.__class__.__name__} 下载失败: {e!r}")
 
         # 汇总下载失败信息
         if failed_count > 0:
@@ -514,11 +521,13 @@ class Renderer:
     async def cache_or_render_image(self, result: ParseResult):
         """获取缓存图片（支持跨重启复用）
 
-        以解析结果的 URL（或其他稳定字段）为 key，在 cache_dir 下生成稳定文件名：
+        以解析结果的 URL 和评论内容为 key，在 cache_dir 下生成稳定文件名：
         - 若文件已存在：直接使用，不再重新渲染
         - 若不存在：渲染并写入该文件
         """
-        cache_key = result.url
+        # 评论接口可能临时失败而返回空列表。将评论内容纳入键，避免后续
+        # 重新解析成功后仍复用同一 URL 的无评论渲染图。
+        cache_key = f"v{RENDER_CACHE_VERSION}:{result.url}:{result.comments!r}"
         file_name = f"{uuid.uuid5(uuid.NAMESPACE_URL, cache_key)}.jpeg"
         cache_dir = await CacheManager.ensure_dir(CacheManager.RENDER)
         image_path = cache_dir / file_name

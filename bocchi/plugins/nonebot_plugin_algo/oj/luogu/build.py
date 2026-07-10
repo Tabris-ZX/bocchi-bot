@@ -10,6 +10,7 @@ from pathlib import Path
 from collections import Counter
 import html
 from datetime import datetime
+from uuid import uuid4
 ASSETS_PATH = Path(__file__).resolve().parents[2] / "assets"
 TEMPLATE_PATH = ASSETS_PATH / "template" / "lougu_card.html"
 SAMPLE_TEMPLATE_PATH = ASSETS_PATH / "template" / "sample_card.html"
@@ -72,7 +73,10 @@ class Luogu(LuoguAPI):
                 html_rendered = template.render(**render_context)
                 output, width, height = img_output, DEFAULT_WIDTH, DEFAULT_HEIGHT
             else:
-                render_context = cls._build_sample_context(context)
+                render_context = {
+                    **cls._build_sample_context(context),
+                    "font_faces": context["font_faces"],
+                }
                 render_context = {
                     **render_context,
                     "sample_style": cls._render_style(SAMPLE_STYLE_PATH, render_context),
@@ -103,15 +107,18 @@ class Luogu(LuoguAPI):
     def _font_url(path: Path) -> str:
         return path.resolve().as_uri()
 
+    @staticmethod
+    def _font_data_uri(path: Path) -> str:
+        return "data:font/ttf;base64," + base64.b64encode(path.read_bytes()).decode(
+            "ascii"
+        )
+
     @classmethod
     def _font_faces(cls) -> str:
         return (
             "@font-face{font-family:'Baloo 2';src:url('"
-            f"{cls._font_url(FONT_DIR / 'Baloo2-Regular.ttf')}"
-            "') format('truetype');font-weight:500 900;font-style:normal;font-display:block;}"
-            "@font-face{font-family:'Alibaba Health CN';src:url('"
-            f"{cls._font_url(FONT_DIR / 'AlibabaHealthFont2.0CN-85B.ttf')}"
-            "') format('truetype');font-weight:400 900;font-style:normal;font-display:block;}"
+            f"{cls._font_data_uri(FONT_DIR / 'Baloo2-Regular.ttf')}"
+            "') format('truetype');font-weight:400 800;font-style:normal;font-display:block;}"
             "@font-face{font-family:'Noto Sans CJK SC';src:url('"
             f"{cls._font_url(FONT_DIR / 'NotoSansSC-Regular.ttf')}"
             "') format('truetype');font-weight:400;font-style:normal;font-display:block;}"
@@ -186,12 +193,16 @@ class Luogu(LuoguAPI):
         except Exception as e:
             logger.warning(f"未安装 Playwright：{e}")
             return False
+        html_path = out_path.with_name(f".{out_path.stem}-{uuid4().hex}.html")
         try:
+            # set_content() 的页面地址是 about:blank，会被 Chromium 拒绝加载
+            # file:// 字体。通过同目录临时 HTML 文件导航，字体与页面保持同源。
+            html_path.write_text(html, encoding="utf-8")
             async with async_playwright() as pw:
                 browser = await pw.chromium.launch()
                 context = await browser.new_context(viewport={"width": int(width), "height": int(height or 1)}, device_scale_factor=2)
                 page = await context.new_page()
-                await page.set_content(html, wait_until="domcontentloaded")
+                await page.goto(html_path.as_uri(), wait_until="domcontentloaded")
                 try:
                     await page.wait_for_load_state("load", timeout=3000)
                 except PlaywrightTimeoutError:
@@ -209,6 +220,8 @@ class Luogu(LuoguAPI):
         except Exception as e:
             logger.error(f"Playwright 截图失败: {e}")
             return False
+        finally:
+            html_path.unlink(missing_ok=True)
 
 
     @classmethod
@@ -344,8 +357,6 @@ class Luogu(LuoguAPI):
                 {"key": "contests", "value": display(context["contest_count"])},
                 {"key": "registered", "value": display(context["registration_str"])},
             ],
-            "detail_hint": f"/lg -f {context['name']} 查看完整信息",
-            "footer_signature": f"{datetime.now().strftime('%m-%d %H:%M')}@Tabris-ZX",
         }
 
     @staticmethod

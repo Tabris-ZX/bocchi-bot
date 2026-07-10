@@ -79,33 +79,32 @@ clear_subscribes = on_alconna(
 )
 
 luogu_info = on_alconna(
-    Alconna("/洛谷",
+    Alconna("洛谷",
         Option("-f"),
         Args["user", str | int],
     ),
-    aliases={"/lg"},
+    aliases={"lg"},
     priority=5,
     block=True,
 )
 
 bind_luogu = on_alconna(
-    Alconna("绑定洛谷",
+    Alconna("bindlg",
         Args["user", str | int],
     ),
-    aliases={"洛谷绑定","绑定lg","lg绑定"},
     priority=5,
     block=True,
 )
 
 my_luogu = on_alconna(
-    Alconna("我的洛谷", Option("-f")),
+    Alconna("mylg", Option("-f")),
     priority=5,
     block=True,
 )
 
 # cf指令
 cf_info = on_alconna(
-    Alconna("/cf",
+    Alconna("cf",
         Option("-f"),
         Args["handle", str],
     ),
@@ -114,16 +113,15 @@ cf_info = on_alconna(
 )
 
 bind_cf = on_alconna(
-    Alconna("绑定cf",
+    Alconna("bindcf",
         Args["handle", str],
     ),
-    aliases={"cf绑定"},
     priority=5,
     block=True,
 )
 
 my_cf = on_alconna(
-    Alconna("我的cf", Option("-f")),
+    Alconna("mycf", Option("-f")),
     priority=5,
     block=True,
 )

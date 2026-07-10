@@ -52,7 +52,7 @@ class Config(BaseModel):
     """浏览器程序路径，如果无法识别浏览器请填写此配置"""
     plite_live_photo: bool = True
     """是否使用 ffmpeg 转码 Live Photo"""
-    plite_headless: bool = False
+    plite_headless: bool = True
     """是否使用无头浏览器"""
     plite_max_comments: int = 5
     """最大评论数量"""

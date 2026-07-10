@@ -19,8 +19,8 @@
     <section class="hero-panel">
       <div class="name">{{ name }}</div>
       <div class="chips">
-        <div class="chip"><span class="chip-icon">🏆</span> {{ chip_left }}</div>
-        <div class="chip"><span class="chip-icon">⭐</span> {{ chip_right }}</div>
+        <div class="chip"><span class="chip-icon">🏆</span><span class="chip-text">{{ chip_left }}</span></div>
+        <div class="chip"><span class="chip-icon">⭐</span><span class="chip-text">{{ chip_right }}</span></div>
       </div>
     </section>
 
@@ -39,9 +39,6 @@
         {% endfor %}
       </div>
     </section>
-
-    <div class="footer">{{ detail_hint }}</div>
-    <div class="author">{{ footer_signature }}</div>
   </div>
 </body>
 </html>

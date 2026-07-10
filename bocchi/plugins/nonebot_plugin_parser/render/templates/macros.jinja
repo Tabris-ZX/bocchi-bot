@@ -252,22 +252,9 @@
                      alt="' ~ (cont.desc|e) ~ '" />'
                                 ) %}
             {% endif %}
-            {# 5. 视频封面 + 播放按钮 #}
+            {# 5. 视频由 send_content 单独发送；封面仅保留在合并转发节点中。 #}
         {% elif cls == 'VideoContent' %}
             {% set _ = flush_images() %}
-            {% set src = cont | safe_src("get_cover_path") %}
-            {% set _ = html_parts.append(
-                            '<div class="relative rounded-2xl overflow-hidden bg-black shadow-md mt-3">'
-                            '<img src="' ~ src ~ '" class="w-full h-full object-cover opacity-80" />'
-                            '<div class="absolute inset-0 flex items-center justify-center">'
-                            '<div class="w-14 h-14 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center border border-white/30 text-white text-xl">'
-                            '<i class="fa-icon fa-play ml-1"></i>'
-                            '</div>'
-                            '</div>'
-                            '<div class="absolute bottom-2 left-2 flex items-center bg-black/60 text-white h-[19px] px-1.5 rounded-[2px] text-[10px] font-mono">' ~ cont.get_display_size()  ~ '</div>'
-                            '<div class="absolute bottom-2 right-2 flex items-center bg-black/60 text-white h-[19px] px-1.5 rounded-[2px] text-[10px] font-mono">' ~ cont.display_duration ~ '</div>'
-                            '</div>'
-                        ) %}
             {# 6. 链接卡片 #}
         {% elif cls == 'LinkContent' %}
             {% set _ = flush_images() %}

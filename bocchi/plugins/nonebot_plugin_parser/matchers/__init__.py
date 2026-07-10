@@ -150,14 +150,14 @@ async def parser_handler(
         logger.debug(f"命中缓存: {cache_key}, 结果: {result!r}")
 
     summary_msg = await RENDERER.render_messages(result)
-    await summary_msg.send()
     contents = list(result.content)
     if result.repost:
         contents.extend(result.repost.content)
     has_media = any(isinstance(c, MediaContent) and c.need_send for c in contents)
-    if not has_media:
-        return
-    if pconfig.lazy_download:
+    if has_media and pconfig.lazy_download:
+        await UniMessage(
+            UniHelper.construct_forward_message([summary_msg])
+        ).send()
         if pconfig.lazy_download_tip:
             download_cmd = ", ".join(pconfig.download_command)
             await UniMessage(
@@ -167,7 +167,11 @@ async def parser_handler(
         LazyManager.add(session.user.id, result)
         return
 
-    async for content_msg in RENDERER.send_content(result):
+    async for content_msg in RENDERER.send_content(
+        result,
+        leading_segs=(summary_msg,),
+        force_forward=True,
+    ):
         await content_msg.send()
 
 
