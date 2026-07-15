@@ -435,6 +435,8 @@ class Codeforces(CodeforcesAPI):
             "accent_soft": cls._adjust_color(accent, 0.38),
             "avatar": context["avatar"],
             "name": context["handle"],
+            "full_command": f"cf -f {context['handle']} 获得完整信息",
+            "generated_at": datetime.now().strftime("%m-%d %H:%M"),
             "rating": context["rating"] or "--",
             "chip_left": f"MaxRating {context['max_rating'] or '--'}",
             "chip_right": f"{context['friend_of_count']} friends",

@@ -6,5 +6,6 @@ data/
 log/
 ffmpeg/
 docker/
+resources/temp
 
 __pycache__

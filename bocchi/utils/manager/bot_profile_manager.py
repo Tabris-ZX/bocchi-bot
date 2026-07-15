@@ -22,21 +22,6 @@ DIR_PATH = DATA_PATH / "bot_profile"
 PROFILE_PATH = DIR_PATH / "profile"
 PROFILE_PATH.mkdir(parents=True, exist_ok=True)
 
-thanks_users = [
-    "775757368",
-    "3173096606",
-    "3030664944",
-    "2081524274",
-    "865885535",
-    "3891116983",
-    "3480231705",
-    "3828494966",
-    "1271944500",
-    "1272734165",
-    "3179643763",
-    "2253466343",
-]
-
 Config.add_plugin_config(
     "bot_profile",
     "AUTO_SEND_PROFILE",
@@ -173,7 +158,7 @@ class BotProfileManager:
         # 并发获取用户信息，并为单个请求设置超时，避免长尾阻塞
         fetch_tasks = [
             asyncio.wait_for(interface.get_user(user_id), timeout=2.0)
-            for user_id in thanks_users
+            for user_id in BotConfig.thanks_users
         ]
         fetch_results = await asyncio.gather(*fetch_tasks, return_exceptions=True)
         for result in fetch_results:

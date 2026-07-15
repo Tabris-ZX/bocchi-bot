@@ -349,6 +349,8 @@ class Luogu(LuoguAPI):
             "accent_soft": cls._adjust_color(accent, 0.38),
             "avatar": context["avatar"],
             "name": context["name"],
+            "full_command": f"lg -f {context['name']} 获得完整信息",
+            "generated_at": datetime.now().strftime("%m-%d %H:%M"),
             "rating": display(context["elo"]),
             "chip_left": f"Rating {display(context['elo'])}",
             "chip_right": f"{display(context['followers'])} followers",

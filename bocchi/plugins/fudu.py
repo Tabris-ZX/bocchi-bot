@@ -1,0 +1,147 @@
+import random
+
+from nonebot import on_message
+from nonebot.adapters import Event
+from nonebot.plugin import PluginMetadata
+from nonebot_plugin_alconna import Image as alcImg
+from nonebot_plugin_alconna import UniMsg
+from nonebot_plugin_uninfo import Uninfo
+from bocchi.configs.config import BotConfig, Config
+from bocchi.configs.path_config import TEMP_PATH
+from bocchi.configs.utils import PluginExtraData, RegisterConfig, Task
+from bocchi.utils.common_utils import CommonUtils
+from bocchi.utils.enum import PluginType
+from bocchi.utils.image_utils import get_download_image_hash
+from bocchi.utils.message import MessageUtils
+from bocchi.utils.rules import ensure_group
+
+__plugin_meta__ = PluginMetadata(
+    name="复读",
+    description="群友的本质是什么？是复读机哒！",
+    usage="""
+    usage：
+        重复3次相同的消息时会复读
+    """.strip(),
+    extra=PluginExtraData(
+        author="HibiKier",
+        version="0.2",
+        menu_type="其他",
+        plugin_type=PluginType.DEPENDANT,
+        tasks=[Task(module="fudu", name="复读")],
+        ignore_prompt=True,
+        configs=[
+            RegisterConfig(
+                key="FUDU_PROBABILITY",
+                value=0.8,
+                help="复读概率",
+                default_value=0.8,
+                type=float,
+            ),
+            RegisterConfig(
+                module="_task",
+                key="DEFAULT_FUDU",
+                value=True,
+                help="被动 复读 进群默认开关状态",
+                default_value=True,
+                type=bool,
+            ),
+        ],
+    ).to_dict(),
+)
+
+
+class Fudu:
+    def __init__(self):
+        self.data = {}
+
+    def append(self, key, content):
+        self._create(key)
+        self.data[key]["data"].append(content)
+
+    def clear(self, key):
+        self._create(key)
+        self.data[key]["data"] = []
+        self.data[key]["is_repeater"] = False
+
+    def size(self, key) -> int:
+        self._create(key)
+        return len(self.data[key]["data"])
+
+    def check(self, key, content) -> bool:
+        self._create(key)
+        return self.data[key]["data"][0] == content
+
+    def get(self, key):
+        self._create(key)
+        return self.data[key]["data"][0]
+
+    def is_repeater(self, key):
+        self._create(key)
+        return self.data[key]["is_repeater"]
+
+    def set_repeater(self, key):
+        self._create(key)
+        self.data[key]["is_repeater"] = True
+
+    def _create(self, key):
+        if self.data.get(key) is None:
+            self.data[key] = {"is_repeater": False, "data": []}
+
+
+_manage = Fudu()
+
+
+base_config = Config.get("fudu")
+
+
+_matcher = on_message(rule=ensure_group, priority=999)
+
+
+@_matcher.handle()
+async def _(message: UniMsg, event: Event, session: Uninfo):
+    group_id = session.group.id if session.group else ""
+    if await CommonUtils.task_is_block(session, "fudu", group_id):
+        return
+    if event.is_tome():
+        return
+    plain_text = message.extract_plain_text()
+    image_list = [m.url for m in message if isinstance(m, alcImg) and m.url]
+    if not plain_text and not image_list:
+        return
+    if plain_text and plain_text.startswith(f"@可爱的{BotConfig.self_nickname}"):
+        await MessageUtils.build_message("复制粘贴的虚空艾特？").send(reply_to=True)
+    if image_list:
+        img_hash = await get_download_image_hash(image_list[0], group_id)
+    else:
+        img_hash = ""
+    add_msg = f"{plain_text}|-|{img_hash}"
+    if _manage.size(group_id) == 0:
+        _manage.append(group_id, add_msg)
+    elif _manage.check(group_id, add_msg):
+        _manage.append(group_id, add_msg)
+    else:
+        _manage.clear(group_id)
+        _manage.append(group_id, add_msg)
+    if _manage.size(group_id) > 2 and (
+        random.random() < base_config.get("FUDU_PROBABILITY")
+        and not _manage.is_repeater(group_id)
+    ):
+        if random.random() < 0.2:
+            if plain_text.startswith("打断施法"):
+                await MessageUtils.build_message(f"打断{plain_text}").finish()
+            else:
+                await MessageUtils.build_message("打断施法！").finish()
+        _manage.set_repeater(group_id)
+        rst = None
+        if image_list and plain_text:
+            rst = MessageUtils.build_message(
+                [plain_text, TEMP_PATH / f"compare_download_{group_id}_img.jpg"]
+            )
+        elif image_list:
+            rst = MessageUtils.build_message(
+                TEMP_PATH / f"compare_download_{group_id}_img.jpg"
+            )
+        elif plain_text:
+            rst = MessageUtils.build_message(plain_text)
+        if rst:
+            await rst.finish()

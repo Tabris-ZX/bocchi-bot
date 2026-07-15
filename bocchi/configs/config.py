@@ -23,6 +23,8 @@ class BotSetting(BaseModel):
     """第三方插件路径"""
     qq_adapter_load: bool = False
     """是否加载 QQ 官方适配器"""
+    thanks_users: list[str] = Field(default_factory=list)
+    """自我介绍中展示的致谢用户 ID"""
 
     def get_qbot_uid(self, qbot_id: str) -> str | None:
         """获取官bot账号id
